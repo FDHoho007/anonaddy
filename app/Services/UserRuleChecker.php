@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Alias;
 use App\Models\EmailData;
+use App\Models\Rule;
 use App\Models\User;
 use Illuminate\Support\Str;
 
@@ -34,6 +35,7 @@ class UserRuleChecker
     protected function getRuleIdsAndActions(string $emailType): array
     {
         $ruleIdsAndActions = [];
+        $matchedRuleIds = [];
 
         $method = "activeRulesFor{$emailType}Ordered";
         $rules = $this->user->{$method};
@@ -43,9 +45,12 @@ class UserRuleChecker
             if ($this->ruleConditionsSatisfied($rule->conditions, $rule->operator)) {
                 $ruleIdsAndActions[$rule->id] = $rule->actions;
 
-                // Increment applied count
-                $rule->increment('applied', 1, ['last_applied' => now()]);
+                $matchedRuleIds[] = $rule->id;
             }
+        }
+
+        if (! empty($matchedRuleIds)) {
+            Rule::whereIn('id', $matchedRuleIds)->increment('applied', 1, ['last_applied' => now()]);
         }
 
         return $ruleIdsAndActions;
@@ -94,7 +99,7 @@ class UserRuleChecker
     /**
      * Check if a specific condition is satisfied
      */
-    protected function conditionSatisfied(string $variable, array $condition): bool
+    protected function conditionSatisfied($variable, array $condition): bool
     {
         $values = collect($condition['values']);
 
@@ -191,5 +196,12 @@ class UserRuleChecker
         return collect($ruleIdsAndActions)
             ->flatten(1)
             ->contains('type', 'block');
+    }
+
+    public static function shouldQuarantineEmail($ruleIdsAndActions): bool
+    {
+        return collect($ruleIdsAndActions)
+            ->flatten(1)
+            ->contains('type', 'quarantine');
     }
 }

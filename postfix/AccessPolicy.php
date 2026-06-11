@@ -2,11 +2,12 @@
 
 require __DIR__.'/vendor/autoload.php';
 
+use Dotenv\Repository\RepositoryBuilder;
 use Illuminate\Database\Capsule\Manager as Database;
 use ParagonIE\ConstantTime\Base32;
 
 try {
-    $repository = Dotenv\Repository\RepositoryBuilder::createWithDefaultAdapters()
+    $repository = RepositoryBuilder::createWithDefaultAdapters()
         ->allowList([
             'DB_HOST',
             'DB_PORT',
@@ -16,6 +17,7 @@ try {
             'DB_SOCKET',
             'MYSQL_ATTR_SSL_CA',
             'ACTION_NON_ASCII',
+            'ACTION_ADDRESS_TOO_LONG',
             'ACTION_DOES_NOT_EXIST',
             'ACTION_ALIAS_DISCARD',
             'ACTION_USERNAME_DISCARD',
@@ -69,6 +71,7 @@ try {
     // Define actions, these can be overridden by adding the variables to your .env file
     // e.g. ACTION_DOES_NOT_EXIST='550 5.1.1 User not found'
     define('ACTION_NON_ASCII', $_ENV['ACTION_NON_ASCII'] ?? '553 5.6.7 Non-ASCII characters in the local-part of the recipient address are not permitted');
+    define('ACTION_ADDRESS_TOO_LONG', $_ENV['ACTION_ADDRESS_TOO_LONG'] ?? '550 5.1.1 Recipient address length exceeds maximum (RFC 5321)');
     define('ACTION_DOES_NOT_EXIST', $_ENV['ACTION_DOES_NOT_EXIST'] ?? '550 5.1.1 Address does not exist');
     define('ACTION_ALIAS_DISCARD', $_ENV['ACTION_ALIAS_DISCARD'] ?? 'DISCARD is inactive alias');
     define('ACTION_USERNAME_DISCARD', $_ENV['ACTION_USERNAME_DISCARD'] ?? 'DISCARD has inactive username');
@@ -93,6 +96,15 @@ try {
         exit(0);
     }
 
+    // RFC 5321: maximum address length is 254 octets
+    if (strlen($aliasEmail) > 254) {
+        logData('Recipient address too long: '.strlen($aliasEmail).' octets');
+
+        sendAction(ACTION_ADDRESS_TOO_LONG);
+
+        exit(0);
+    }
+
     // $senderEmail = strtolower($args['sender']);
     [$aliasLocalPart, $aliasDomain] = explode('@', $aliasEmail);
 
@@ -104,6 +116,18 @@ try {
     }
 
     $aliasHasSharedDomain = in_array($aliasDomain, $allDomains);
+
+    // Check if the alias has a username subdomain
+    $matchedBaseDomain = null;
+
+    foreach ($allDomains as $domain) {
+        if (str_ends_with($aliasDomain, ".{$domain}")) {
+            $matchedBaseDomain = $domain;
+            break;
+        }
+    }
+
+    $aliasHasUsernameDomain = ! is_null($matchedBaseDomain);
 
     // Check if it is a bounce with a valid VERP...
     if (substr($aliasEmail, 0, 2) === 'b_') {
@@ -133,8 +157,25 @@ try {
         $aliasEmail = before($aliasEmail, '+').'@'.$aliasDomain;
     }
 
+    $aliasActionQuery = Database::table('aliases')
+        ->leftJoin('users', 'aliases.user_id', '=', 'users.id')
+        ->where('aliases.email', $aliasEmail)
+        ->selectRaw('CASE
+    WHEN aliases.deleted_at IS NOT NULL THEN ?
+    WHEN aliases.active = 0 THEN ?
+    WHEN users.reject_until > NOW() THEN ?
+    WHEN users.defer_until > NOW() THEN ?
+    ELSE "DUNNO"
+    END', [
+            ACTION_DOES_NOT_EXIST,
+            ACTION_ALIAS_DISCARD,
+            ACTION_REJECT,
+            ACTION_DEFER,
+        ])
+        ->first();
+
     // Check if the alias already exists or not
-    $noAliasExists = Database::table('aliases')->select('id')->where('email', $aliasEmail)->doesntExist();
+    $noAliasExists = is_null($aliasActionQuery);
 
     if ($noAliasExists && $aliasHasSharedDomain) {
         // If admin username is set then allow through with catch-all
@@ -144,28 +185,7 @@ try {
             sendAction(ACTION_DOES_NOT_EXIST);
         }
     } else {
-        $aliasAction = null;
-
-        if (! $noAliasExists) {
-            $aliasActionQuery = Database::table('aliases')
-                ->leftJoin('users', 'aliases.user_id', '=', 'users.id')
-                ->where('aliases.email', $aliasEmail)
-                ->selectRaw('CASE
-                WHEN aliases.deleted_at IS NOT NULL THEN ?
-                WHEN aliases.active = 0 THEN ?
-                WHEN users.reject_until > NOW() THEN ?
-                WHEN users.defer_until > NOW() THEN ?
-                ELSE "DUNNO"
-                END', [
-                    ACTION_DOES_NOT_EXIST,
-                    ACTION_ALIAS_DISCARD,
-                    ACTION_REJECT,
-                    ACTION_DEFER,
-                ])
-                ->first();
-
-            $aliasAction = getAction($aliasActionQuery);
-        }
+        $aliasAction = $noAliasExists ? null : getAction($aliasActionQuery);
 
         if (in_array($aliasAction, [ACTION_ALIAS_DISCARD, ACTION_DOES_NOT_EXIST])) {
             // If the alias is inactive or deleted then increment the blocked count
@@ -179,17 +199,11 @@ try {
 
             sendAction($aliasAction);
         } elseif ($aliasHasUsernameDomain) {
-            $concatDomainsStatement = array_reduce(array_keys($allDomains), function ($carry, $key) {
-                $comma = $key === 0 ? '' : ',';
-
-                return "{$carry}{$comma}CONCAT(usernames.username, ?)";
-            }, '');
-
-            $dotDomains = array_map(fn ($domain) => ".{$domain}", $allDomains);
+            $aliasUsername = substr($aliasDomain, 0, -(strlen($matchedBaseDomain) + 1));
 
             $usernameActionQuery = Database::table('usernames')
                 ->leftJoin('users', 'usernames.user_id', '=', 'users.id')
-                ->whereRaw('? IN ('.$concatDomainsStatement.')', [$aliasDomain, ...$dotDomains])
+                ->where('usernames.username', $aliasUsername)
                 ->selectRaw('CASE
                 WHEN ? AND usernames.catch_all = 0 AND (usernames.auto_create_regex IS NULL OR ? NOT REGEXP usernames.auto_create_regex) THEN ?
                 WHEN usernames.active = 0 THEN ?
@@ -236,7 +250,7 @@ try {
             sendAction(getAction($domainActionQuery));
         }
     }
-} catch (\Throwable $e) {
+} catch (Throwable $e) {
     logData($e->getMessage());
 
     exit(0);
@@ -281,13 +295,13 @@ function getIdFromVerp($verpLocalPart, $verpEmail)
         $id = Base32::decodeNoPadding($parts[1]);
 
         $signature = Base32::decodeNoPadding($parts[2]);
-    } catch (\Exception $e) {
+    } catch (Exception $e) {
         logData('VERP base32 decode failure: '.$verpEmail.' '.$e->getMessage());
 
         return;
     }
 
-    $expectedSignature = substr(hash_hmac('sha3-224', $id, $_ENV['ANONADDY_VERP_SECRET'] ?? ''), 0, 8);
+    $expectedSignature = substr(hash_hmac('sha3-224', $id, $_ENV['ANONADDY_SECRET'] ?? ''), 0, 8);
 
     if ($signature !== $expectedSignature) {
         logData('VERP invalid signature: '.$verpEmail);
@@ -308,22 +322,6 @@ function before($subject, $search)
     $result = strstr($subject, (string) $search, true);
 
     return $result === false ? $subject : $result;
-}
-
-// Get the portion of a string before the last occurrence of a given value.
-function beforeLast($subject, $search)
-{
-    if ($search === '') {
-        return $subject;
-    }
-
-    $pos = mb_strrpos($subject, $search);
-
-    if ($pos === false) {
-        return $subject;
-    }
-
-    return mb_substr($subject, 0, $pos, 'UTF-8');
 }
 
 // Determine if a given string ends with a given substring

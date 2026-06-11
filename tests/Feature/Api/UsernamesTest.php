@@ -69,6 +69,31 @@ class UsernamesTest extends TestCase
     }
 
     #[Test]
+    public function user_created_username_can_login_when_using_normal_authentication()
+    {
+        $response = $this->json('POST', '/api/v1/usernames', [
+            'username' => 'janedoe',
+        ]);
+
+        $username = Username::where('username', 'janedoe')->first();
+        $this->assertThat($username->can_login, $this->isTrue(), 'username can login');
+    }
+
+    #[Test]
+    public function user_created_username_cannot_login_when_using_external_authentication()
+    {
+        $this->user->defaultUsername->external_id = 'test';
+        $this->user->defaultUsername->save();
+
+        $response = $this->json('POST', '/api/v1/usernames', [
+            'username' => 'janedoe',
+        ]);
+
+        $username = Username::where('username', 'janedoe')->first();
+        $this->assertThat($username->can_login, $this->isFalse(), 'username cannot login');
+    }
+
+    #[Test]
     public function user_can_not_exceed_username_limit()
     {
         $this->json('POST', '/api/v1/usernames', [
@@ -254,6 +279,24 @@ class UsernamesTest extends TestCase
     }
 
     #[Test]
+    public function user_cannot_change_login_for_username_when_user_is_external()
+    {
+        $this->user->defaultUsername->external_id = 'test';
+        $this->user->defaultUsername->save();
+
+        $username = Username::factory()->create([
+            'user_id' => $this->user->id,
+            'can_login' => false,
+        ]);
+
+        $response = $this->json('POST', '/api/v1/loginable-usernames/', [
+            'id' => $username->id,
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    #[Test]
     public function user_cannot_disallow_login_for_default_username()
     {
         $username = $this->user->defaultUsername;
@@ -323,6 +366,25 @@ class UsernamesTest extends TestCase
         $response
             ->assertStatus(422)
             ->assertJsonValidationErrorFor('auto_create_regex');
+    }
+
+    #[Test]
+    public function username_auto_create_regex_rejects_redos_prone_patterns()
+    {
+        $username = Username::factory()->create([
+            'user_id' => $this->user->id,
+        ]);
+
+        $dangerousPatterns = ['(.*)*', '(.+)+', '(a+)+', '(\w+)+'];
+
+        foreach ($dangerousPatterns as $pattern) {
+            $response = $this->json('PATCH', '/api/v1/usernames/'.$username->id, [
+                'auto_create_regex' => $pattern,
+            ]);
+            $response
+                ->assertStatus(422)
+                ->assertJsonValidationErrorFor('auto_create_regex');
+        }
     }
 
     #[Test]

@@ -26,6 +26,7 @@ class AliasController extends Controller
             ->when($request->input('username'), function ($query, $id) {
                 return $query->belongsToAliasable('App\Models\Username', $id);
             })
+            ->orderBy('pinned', 'desc')
             ->when($request->input('sort'), function ($query, $sort) {
                 $direction = strpos($sort, '-') === 0 ? 'desc' : 'asc';
                 $sort = ltrim($sort, '-');
@@ -68,6 +69,9 @@ class AliasController extends Controller
                 $active = $value === 'true' ? true : false;
 
                 return $query->where('active', $active);
+            })
+            ->when($request->input('filter.pinned'), function ($query, $value) {
+                return $query->where('pinned', $value === 'true');
             });
 
         // Keep /aliases?deleted=with for backwards compatibility
@@ -131,6 +135,12 @@ class AliasController extends Controller
             if ($format === 'random_words') {
                 // Random Words
                 $localPart = user()->generateRandomWordLocalPart();
+            } elseif ($format === 'random_male_name') {
+                $localPart = user()->generateRandomNameLocalPart('male');
+            } elseif ($format === 'random_female_name') {
+                $localPart = user()->generateRandomNameLocalPart('female');
+            } elseif ($format === 'random_noun') {
+                $localPart = user()->generateRandomNounLocalPart();
             } elseif ($format === 'uuid') {
                 // UUID
                 $localPart = Uuid::uuid4();
@@ -147,7 +157,7 @@ class AliasController extends Controller
         // Check if domain is for username or custom domain
         $parentDomain = collect(config('anonaddy.all_domains'))
             ->filter(function ($name) use ($request) {
-                return Str::endsWith($request->domain, $name);
+                return Str::endsWith($request->domain, '.'.$name);
             })
             ->first();
 
@@ -210,8 +220,6 @@ class AliasController extends Controller
     public function destroy($id)
     {
         $alias = user()->aliases()->findOrFail($id);
-
-        $alias->detachAllRecipients();
 
         $alias->delete();
 

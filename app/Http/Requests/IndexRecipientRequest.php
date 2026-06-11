@@ -33,6 +33,11 @@ class IndexRecipientRequest extends FormRequest
                 'in:true,false',
                 'string',
             ],
+            'filter.alias_count' => [
+                'nullable',
+                'in:true,false',
+                'string',
+            ],
         ];
     }
 }

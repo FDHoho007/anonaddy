@@ -5,12 +5,12 @@
 
     <div class="sm:flex sm:items-center mb-6">
       <div class="sm:flex-auto">
-        <h1 class="text-2xl font-semibold text-grey-900">Recipients</h1>
-        <p class="mt-2 text-sm text-grey-700">
+        <h1 class="text-2xl font-semibold text-grey-900 dark:text-white">Recipients</h1>
+        <p class="mt-2 text-sm text-grey-700 dark:text-grey-200">
           A list of all the recipients {{ search ? 'found for your search' : 'in your account' }}
           <button @click="moreInfoOpen = !moreInfoOpen">
             <InformationCircleIcon
-              class="h-6 w-6 inline-block cursor-pointer text-grey-500"
+              class="h-6 w-6 inline-block cursor-pointer text-grey-500 dark:text-grey-200"
               title="Click for more information"
             />
           </button>
@@ -27,6 +27,9 @@
       </div>
     </div>
 
+    <p v-if="rows.length" class="mb-2 text-xs text-grey-500 dark:text-grey-300 md:hidden">
+      Swipe horizontally to view recipient actions.
+    </p>
     <vue-good-table
       v-if="rows.length"
       v-on:sort-change="debounceToolips"
@@ -42,7 +45,7 @@
         <span v-if="props.column.label == 'Key'">
           {{ props.column.label }}
           <span
-            class="tooltip outline-none"
+            class="tooltip outline-hidden"
             :data-tippy-content="`Use this to attach recipients to new aliases as they are created e.g. alias+key@${$page.props.user.username}.anonaddy.com. You can attach multiple recipients by doing alias+2.3.4@${$page.props.user.username}.anonaddy.com. Separating each key by a full stop.`"
           >
             <icon name="info" class="inline-block w-4 h-4 text-grey-300 fill-current" />
@@ -51,7 +54,7 @@
         <span v-else-if="props.column.label == 'Alias Count'">
           {{ props.column.label }}
           <span
-            class="tooltip outline-none"
+            class="tooltip outline-hidden"
             data-tippy-content="This shows the total number of aliases that either the recipient is directly assigned to, or where the recipient is set as the default for a custom domain or username."
           >
             <icon name="info" class="inline-block w-4 h-4 text-grey-300 fill-current" />
@@ -64,16 +67,16 @@
       <template #table-row="props">
         <span
           v-if="props.column.field == 'created_at'"
-          class="tooltip outline-none cursor-default text-sm text-grey-500"
+          class="tooltip outline-hidden cursor-default text-sm text-grey-500 dark:text-grey-300"
           :data-tippy-content="$filters.formatDate(rows[props.row.originalIndex].created_at)"
           >{{ $filters.timeAgo(props.row.created_at) }}
         </span>
-        <span v-else-if="props.column.field == 'key'" class="text-grey-500">
+        <span v-else-if="props.column.field == 'key'" class="text-grey-500 dark:text-grey-300">
           {{ props.row.key }}
         </span>
         <span v-else-if="props.column.field == 'email'">
           <button
-            class="tooltip outline-none font-medium text-grey-700"
+            class="tooltip outline-hidden font-medium text-grey-700 dark:text-grey-200"
             data-tippy-content="Click to copy"
             @click="clipboard(rows[props.row.originalIndex].email)"
           >
@@ -87,7 +90,10 @@
             >default</span
           >
 
-          <span v-else-if="props.row.email_verified_at" class="block text-grey-400 text-sm py-1">
+          <span
+            v-else-if="props.row.email_verified_at"
+            class="block text-grey-400 text-sm py-1 dark:text-grey-300"
+          >
             <button @click="openMakeDefaultModal(props.row)">Make Default</button>
           </span>
         </span>
@@ -102,7 +108,7 @@
               as="button"
               type="button"
               data-tippy-content="Click to view the aliases using your default recipient"
-              class="text-indigo-600 hover:text-indigo-900 font-medium tooltip"
+              class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-500 font-medium tooltip"
               >{{ props.row.aliases_count }}</Link
             >
           </span>
@@ -112,11 +118,11 @@
               as="button"
               type="button"
               data-tippy-content="Click to view the aliases using this recipient"
-              class="text-indigo-600 hover:text-indigo-900 font-medium tooltip"
+              class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-500 font-medium tooltip"
               >{{ props.row.aliases_count }}</Link
             >
           </span>
-          <span v-else class="text-grey-500">0</span>
+          <span v-else class="text-grey-500 dark:text-grey-300">0</span>
         </span>
         <span v-else-if="props.column.field === 'should_encrypt'">
           <span v-if="props.row.fingerprint" class="flex">
@@ -145,7 +151,7 @@
           <button
             v-else
             @click="openRecipientKeyModal(props.row)"
-            class="text-sm text-grey-500 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="text-sm text-grey-500 dark:text-grey-300 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Add PGP key
           </button>
@@ -170,12 +176,12 @@
             Resend email
           </button>
         </span>
-        <span v-else class="outline-none whitespace-nowrap" tabindex="-1">
+        <span v-else class="outline-hidden whitespace-nowrap" tabindex="-1">
           <Link
             :href="route('recipients.edit', props.row.id)"
             as="button"
             type="button"
-            class="text-indigo-500 hover:text-indigo-800 font-medium"
+            class="text-indigo-500 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-500 font-medium"
             >Edit<span class="sr-only">, {{ props.row.email }}</span></Link
           >
           <button
@@ -183,7 +189,7 @@
             @click="openDeleteModal(props.row)"
             as="button"
             type="button"
-            class="text-indigo-500 hover:text-indigo-800 font-medium ml-4"
+            class="text-indigo-500 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-500 font-medium ml-4"
           >
             Delete<span class="sr-only">, {{ props.row.email }}</span>
           </button>
@@ -192,14 +198,18 @@
     </vue-good-table>
 
     <div v-else class="text-center">
-      <InboxArrowDownIcon class="mx-auto h-16 w-16 text-grey-400" />
-      <h3 class="mt-2 text-lg font-medium text-grey-900">No Recipients found for that search</h3>
-      <p class="mt-1 text-md text-grey-500">Try entering a different search term.</p>
+      <InboxArrowDownIcon class="mx-auto h-16 w-16 text-grey-400 dark:text-grey-200" />
+      <h3 class="mt-2 text-lg font-medium text-grey-900 dark:text-white">
+        No Recipients found for that search
+      </h3>
+      <p class="mt-1 text-md text-grey-500 dark:text-grey-200">
+        Try entering a different search term.
+      </p>
       <div class="mt-6">
         <Link
           :href="route('recipients.index')"
           type="button"
-          class="inline-flex items-center rounded-md border border-transparent bg-cyan-400 hover:bg-cyan-300 text-cyan-900 px-4 py-2 text-sm font-medium shadow-sm focus:outline-none"
+          class="inline-flex items-center rounded-md border border-transparent bg-cyan-400 hover:bg-cyan-300 text-cyan-900 px-4 py-2 text-sm font-medium shadow-sm focus:outline-hidden"
         >
           View All Recipients
         </Link>
@@ -209,11 +219,11 @@
     <Modal :open="addRecipientModalOpen" @close="addRecipientModalOpen = false">
       <template v-slot:title> Add new recipient </template>
       <template v-slot:content>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           Enter the individual email of the new recipient you'd like to add. This is where your
           aliases will <b>forward messages to</b>.
         </p>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           You will receive an email with a verification link that will <b>expire in one hour</b>,
           you can click "Resend email" to get a new one.
         </p>
@@ -224,7 +234,7 @@
           <input
             v-model="newRecipient"
             type="email"
-            class="block w-full rounded-md border-0 py-2 pr-10 ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-base sm:leading-6 mb-6"
+            class="block w-full rounded-md border-0 py-2 pr-10 ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-base sm:leading-6 mb-6 dark:bg-white/5 dark:text-white"
             :class="errors.newRecipient ? 'ring-red-500' : ''"
             placeholder="johndoe@example.com"
             autofocus
@@ -240,7 +250,7 @@
             </button>
             <button
               @click="addRecipientModalOpen = false"
-              class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             >
               Cancel
             </button>
@@ -252,13 +262,17 @@
     <Modal :open="addRecipientKeyModalOpen" @close="closeRecipientKeyModal">
       <template v-slot:title> Add Public GPG Key </template>
       <template v-slot:content>
-        <p class="mt-4 text-grey-700">Enter your <b>PUBLIC</b> key data in the text area below.</p>
-        <p class="mt-4 text-grey-700">Make sure to remove <b>Comment:</b> and <b>Version:</b></p>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
+          Enter your <b>PUBLIC</b> key data in the text area below.
+        </p>
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
+          Make sure to remove <b>Comment:</b> and <b>Version:</b>
+        </p>
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           ElGamal keys are
           <a
             href="https://sequoia-pgp.org/status/#public-key-algorithms"
-            class="text-indigo-700"
+            class="text-indigo-700 dark:text-indigo-400"
             target="_blank"
             rel="nofollow noreferrer noopener"
             >not currently supported</a
@@ -270,7 +284,7 @@
           </p>
           <textarea
             v-model="recipientKey"
-            class="block w-full rounded-md border-0 py-2 pr-10 ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-base sm:leading-6 mb-6"
+            class="block w-full rounded-md border-0 py-2 pr-10 ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-base sm:leading-6 mb-6 dark:bg-white/5 dark:text-white"
             :class="errors.recipientKey ? 'ring-red-500' : ''"
             placeholder="Begins with '-----BEGIN PGP PUBLIC KEY BLOCK-----'"
             rows="10"
@@ -289,7 +303,7 @@
             </button>
             <button
               @click="closeRecipientKeyModal"
-              class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             >
               Cancel
             </button>
@@ -301,7 +315,7 @@
     <Modal :open="deleteRecipientKeyModalOpen" @close="closeDeleteRecipientKeyModal">
       <template v-slot:title> Remove recipient public key </template>
       <template v-slot:content>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           Are you sure you want to remove the public key for this recipient? It will also be removed
           from any other recipients using the same key.
         </p>
@@ -317,7 +331,7 @@
           </button>
           <button
             @click="closeDeleteRecipientKeyModal"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Cancel
           </button>
@@ -328,7 +342,9 @@
     <Modal :open="deleteRecipientModalOpen" @close="closeDeleteModal">
       <template v-slot:title> Delete recipient </template>
       <template v-slot:content>
-        <p class="mt-4 text-grey-700">Are you sure you want to delete this recipient?</p>
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
+          Are you sure you want to delete this recipient?
+        </p>
         <div class="mt-6 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
           <button
             type="button"
@@ -341,7 +357,7 @@
           </button>
           <button
             @click="closeDeleteModal"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Cancel
           </button>
@@ -352,10 +368,10 @@
     <Modal :open="makeDefaultModalOpen" @close="closeMakeDefaultModal">
       <template v-slot:title> Make default recipient</template>
       <template v-slot:content>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           The default recipient for your account is used for all general email notifications.
         </p>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           It is also used for any aliases that do not have any specific recipients set.
         </p>
         <div class="mt-6 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
@@ -370,7 +386,7 @@
           </button>
           <button
             @click="closeMakeDefaultModal"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Cancel
           </button>
@@ -381,14 +397,14 @@
     <Modal :open="moreInfoOpen" @close="moreInfoOpen = false">
       <template v-slot:title> More information </template>
       <template v-slot:content>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           This page shows all of the recipients in your account, these are your real email addresses
           where emails can be forwarded to.
         </p>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           You must verify each recipient before you can forwarded emails to it.
         </p>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           To update your account's default recipient email address click "Make Default" next to that
           recipient.
         </p>
@@ -396,7 +412,7 @@
         <div class="mt-6 flex flex-col sm:flex-row">
           <button
             @click="moreInfoOpen = false"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Close
           </button>

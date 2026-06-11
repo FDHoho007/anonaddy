@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\CustomMailDriver\Mime\Part\CustomDataPart;
 use App\Enums\DisplayFromFormat;
+use App\Enums\ListUnsubscribeBehaviour;
 use App\Models\Alias;
 use App\Models\EmailData;
 use App\Models\Recipient;
@@ -59,6 +60,14 @@ class ForwardEmail extends Mailable implements ShouldBeEncrypted, ShouldQueue
 
     protected $deactivateUrl;
 
+    protected $deactivatePostUrl;
+
+    protected $deletePostUrl;
+
+    protected $blockEmailPostUrl;
+
+    protected $blockDomainPostUrl;
+
     protected $bannerLocationText;
 
     protected $bannerLocationHtml;
@@ -109,12 +118,14 @@ class ForwardEmail extends Mailable implements ShouldBeEncrypted, ShouldQueue
 
     protected $ruleIds;
 
+    protected ?string $smtpInboundRecipient = null;
+
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct(Alias $alias, EmailData $emailData, Recipient $recipient, $resend = false, $ruleIds = null)
+    public function __construct(Alias $alias, EmailData $emailData, Recipient $recipient, $resend = false, $ruleIds = null, ?string $smtpInboundRecipient = null)
     {
         $this->user = $alias->user;
         $this->alias = $alias;
@@ -123,6 +134,7 @@ class ForwardEmail extends Mailable implements ShouldBeEncrypted, ShouldQueue
         $this->tos = $emailData->tos;
         $this->originalCc = $emailData->originalCc ?? null;
         $this->originalTo = $emailData->originalTo ?? null;
+        $this->smtpInboundRecipient = $smtpInboundRecipient;
 
         // Create and swap with alias reply-to addresses to allow easy reply-all
         if (count($this->ccs)) {
@@ -194,6 +206,19 @@ class ForwardEmail extends Mailable implements ShouldBeEncrypted, ShouldQueue
         $this->emailAttachments = $emailData->attachments;
         $this->emailInlineAttachments = $emailData->inlineAttachments;
         $this->deactivateUrl = URL::signedRoute('deactivate', ['alias' => $alias->id]);
+        $this->deactivatePostUrl = URL::temporarySignedRoute('deactivate_post', now()->addDays(30), ['alias' => $alias->id]);
+        $this->deletePostUrl = URL::temporarySignedRoute('delete_post', now()->addDays(30), ['alias' => $alias->id]);
+        $this->blockEmailPostUrl = null;
+        $this->blockDomainPostUrl = null;
+        if (filter_var($this->sender, FILTER_VALIDATE_EMAIL)) {
+            $this->blockEmailPostUrl = URL::temporarySignedRoute('block_email_post', now()->addDays(30), ['alias' => $alias->id, 'email' => $this->sender]);
+        }
+        if (Str::contains($this->sender, '@')) {
+            $senderDomain = Str::afterLast($this->sender, '@');
+            if (strlen($senderDomain) > 0 && strlen($senderDomain) <= 253) {
+                $this->blockDomainPostUrl = URL::temporarySignedRoute('block_domain_post', now()->addDays(30), ['alias' => $alias->id, 'domain' => $senderDomain]);
+            }
+        }
         $this->size = $emailData->size;
         $this->messageId = $emailData->messageId;
         $this->listUnsubscribe = $emailData->listUnsubscribe;
@@ -249,9 +274,18 @@ class ForwardEmail extends Mailable implements ShouldBeEncrypted, ShouldQueue
 
         $displayFrom = $this->getUserDisplayFrom(base64_decode($this->displayFrom));
 
+        $spamWarningBehaviour = $this->user->spam_warning_behaviour;
+        $showSpamBanner = ($this->isSpam || $this->failedDmarc) && $spamWarningBehaviour === 'banner';
+
+        $subject = $this->user->email_subject ?? base64_decode($this->emailSubject);
+        if (($this->isSpam || $this->failedDmarc) && $spamWarningBehaviour === 'subject') {
+            $prefix = $this->failedDmarc ? '[DMARC FAIL]' : '[SPAM]';
+            $subject = $prefix.' '.$subject;
+        }
+
         $this->email = $this
             ->from($this->fromEmail, $displayFrom)
-            ->subject($this->user->email_subject ?? base64_decode($this->emailSubject))
+            ->subject($subject)
             ->withSymfonyMessage(function (Email $message) {
 
                 $message->getHeaders()
@@ -267,14 +301,43 @@ class ForwardEmail extends Mailable implements ShouldBeEncrypted, ShouldQueue
                         ->addIdHeader('Message-ID', bin2hex(random_bytes(16)).'@'.$this->alias->domain);
                 }
 
-                if ($this->listUnsubscribe) {
-                    $message->getHeaders()
-                        ->addTextHeader('List-Unsubscribe', base64_decode($this->listUnsubscribe));
+                $behaviour = $this->user->list_unsubscribe_behaviour;
 
-                    // Only check if has original List-Unsubscribe
-                    if ($this->listUnsubscribePost) {
+                if ($behaviour === ListUnsubscribeBehaviour::Deactivate) {
+                    $message->getHeaders()
+                        ->addTextHeader('List-Unsubscribe', '<'.$this->deactivatePostUrl.'>');
+                    $message->getHeaders()
+                        ->addTextHeader('List-Unsubscribe-Post', 'List-Unsubscribe=One-Click');
+                } elseif ($behaviour === ListUnsubscribeBehaviour::Delete) {
+                    $message->getHeaders()
+                        ->addTextHeader('List-Unsubscribe', '<'.$this->deletePostUrl.'>');
+                    $message->getHeaders()
+                        ->addTextHeader('List-Unsubscribe-Post', 'List-Unsubscribe=One-Click');
+                } elseif ($behaviour === ListUnsubscribeBehaviour::BlockEmail && $this->blockEmailPostUrl) {
+                    $message->getHeaders()
+                        ->addTextHeader('List-Unsubscribe', '<'.$this->blockEmailPostUrl.'>');
+                    $message->getHeaders()
+                        ->addTextHeader('List-Unsubscribe-Post', 'List-Unsubscribe=One-Click');
+                } elseif ($behaviour === ListUnsubscribeBehaviour::BlockDomain && $this->blockDomainPostUrl) {
+                    $message->getHeaders()
+                        ->addTextHeader('List-Unsubscribe', '<'.$this->blockDomainPostUrl.'>');
+                    $message->getHeaders()
+                        ->addTextHeader('List-Unsubscribe-Post', 'List-Unsubscribe=One-Click');
+                } else {
+                    // ListUnsubscribeBehaviour::OriginalWithFallback
+                    if ($this->listUnsubscribe) {
+                        $listUnsubscribeValue = $this->rewriteListUnsubscribeMailtoAddresses(base64_decode($this->listUnsubscribe));
                         $message->getHeaders()
-                            ->addTextHeader('List-Unsubscribe-Post', base64_decode($this->listUnsubscribePost));
+                            ->addTextHeader('List-Unsubscribe', $listUnsubscribeValue);
+                        if ($this->listUnsubscribePost) {
+                            $message->getHeaders()
+                                ->addTextHeader('List-Unsubscribe-Post', base64_decode($this->listUnsubscribePost));
+                        }
+                    } else {
+                        $message->getHeaders()
+                            ->addTextHeader('List-Unsubscribe', '<'.$this->deactivatePostUrl.'>');
+                        $message->getHeaders()
+                            ->addTextHeader('List-Unsubscribe-Post', 'List-Unsubscribe=One-Click');
                     }
                 }
 
@@ -376,7 +439,7 @@ class ForwardEmail extends Mailable implements ShouldBeEncrypted, ShouldQueue
 
         if ($this->emailText) {
             $this->email->text('emails.forward.text')->with([
-                'text' => base64_decode($this->emailText),
+                'text' => Utf8MojibakeRepair::unwindOutlookStyleMojibake(base64_decode($this->emailText)),
             ]);
         }
 
@@ -385,24 +448,28 @@ class ForwardEmail extends Mailable implements ShouldBeEncrypted, ShouldQueue
             $this->bannerLocationText = 'off';
 
             $this->email->view('emails.forward.html')->with([
-                'html' => base64_decode($this->emailHtml),
+                'html' => ForwardedEmailHtmlDocument::innerHtmlForEmbedding(
+                    Utf8MojibakeRepair::unwindOutlookStyleMojibake(base64_decode($this->emailHtml))
+                ),
             ]);
         }
 
-        // No HTML content but isSpam, then force html version
-        if (! $this->emailHtml && $this->isSpam) {
+        // No HTML content but showing spam/DMARC banner, then force html version
+        if (! $this->emailHtml && $showSpamBanner) {
             // Turn off the banner for the plain text version
             $this->bannerLocationText = 'off';
 
             $this->email->view('emails.forward.html')->with([
-                'html' => base64_decode($this->emailText),
+                'html' => ForwardedEmailHtmlDocument::innerHtmlForEmbedding(
+                    Utf8MojibakeRepair::unwindOutlookStyleMojibake(base64_decode($this->emailText))
+                ),
             ]);
         }
 
         // To prevent invalid view error where no text or html is present...
         if (! $this->emailHtml && ! $this->emailText) {
             $this->email->text('emails.forward.text')->with([
-                'text' => base64_decode($this->emailText),
+                'text' => Utf8MojibakeRepair::unwindOutlookStyleMojibake(base64_decode($this->emailText)),
             ]);
         }
 
@@ -417,8 +484,9 @@ class ForwardEmail extends Mailable implements ShouldBeEncrypted, ShouldQueue
             'locationHtml' => $this->bannerLocationHtml,
             'isSpam' => $this->isSpam,
             'failedDmarc' => $this->failedDmarc,
+            'showSpamBanner' => $showSpamBanner,
             'deactivateUrl' => $this->deactivateUrl,
-            'aliasEmail' => $this->alias->email,
+            'aliasEmail' => ForwardBannerAddress::forBanner($this->smtpInboundRecipient, $this->originalTo, $this->alias),
             'aliasDomain' => $this->alias->domain,
             'aliasDescription' => $this->alias->description,
             'userId' => $this->user->id,
@@ -461,10 +529,24 @@ class ForwardEmail extends Mailable implements ShouldBeEncrypted, ShouldQueue
      */
     public function failed(Throwable $exception)
     {
+        $failedDelivery = $this->user->failedDeliveries()->create([
+            'recipient_id' => $this->recipientId,
+            'alias_id' => $this->alias->id,
+            'bounce_type' => null,
+            'remote_mta' => config('mail.mailers.smtp.host'),
+            'sender' => $this->sender,
+            'email_type' => 'F',
+            'status' => null,
+            'code' => $exception->getMessage(),
+            'attempted_at' => now(),
+        ]);
+
         // Send user failed delivery notification, add to failed deliveries table
         $recipient = Recipient::find($this->recipientId);
 
-        $recipient->notify(new FailedDeliveryNotification($this->alias->email, $this->sender, base64_decode($this->emailSubject)));
+        if ($recipient && $this->user->shouldReceiveFailedDeliveryNotification(false)) {
+            $recipient->notify(new FailedDeliveryNotification($this->alias->email, $this->sender, base64_decode($this->emailSubject), false, $this->user->store_failed_deliveries, $recipient->email, false, $this->authenticationResults, $failedDelivery?->remote_mta));
+        }
 
         if ($this->size > 0) {
             if ($this->alias->emails_forwarded > 0) {
@@ -476,18 +558,31 @@ class ForwardEmail extends Mailable implements ShouldBeEncrypted, ShouldQueue
                 $this->user->save();
             }
         }
+    }
 
-        $this->user->failedDeliveries()->create([
-            'recipient_id' => $this->recipientId,
-            'alias_id' => $this->alias->id,
-            'bounce_type' => null,
-            'remote_mta' => null,
-            'sender' => $this->sender,
-            'email_type' => 'F',
-            'status' => null,
-            'code' => $exception->getMessage(),
-            'attempted_at' => now(),
-        ]);
+    /**
+     * Rewrite mailto: addresses in List-Unsubscribe so replies go to the alias and do not expose the user's real email.
+     */
+    private function rewriteListUnsubscribeMailtoAddresses(string $headerValue): string
+    {
+        // Normalise folded/invalid whitespace so malformed headers can still be reused safely.
+        $normalisedHeaderValue = preg_replace('/\s*[\r\n]+\s*/', ' ', trim($headerValue));
+        $normalisedHeaderValue = preg_replace('/\s*,\s*/', ', ', $normalisedHeaderValue);
+
+        return preg_replace_callback(
+            '/<mailto:([^>?]+)(\?[^>]*)?>/i',
+            function (array $matches) {
+                $address = trim($matches[1]);
+                if (! str_contains($address, '@')) {
+                    return $matches[0];
+                }
+                $rewritten = $this->alias->local_part.'+'.Str::replaceLast('@', '=', $address).'@'.$this->alias->domain;
+                $query = $matches[2] ?? '';
+
+                return '<mailto:'.$rewritten.$query.'>';
+            },
+            $normalisedHeaderValue
+        );
     }
 
     private function getUserDisplayFrom($displayFrom)

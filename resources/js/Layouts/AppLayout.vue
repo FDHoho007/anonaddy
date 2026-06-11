@@ -1,5 +1,5 @@
-<template class="">
-  <div class="flex">
+<template>
+  <div class="antialiased flex bg-grey-50 text-grey-700 dark:bg-grey-800 dark:text-white">
     <!-- Narrow sidebar -->
     <div class="h-screen hidden w-28 bg-indigo-900 overflow-y-auto md:block md:fixed">
       <div class="h-full pb-6 pt-4 flex flex-col items-center">
@@ -72,7 +72,7 @@
           leave-from="opacity-100"
           leave-to="opacity-0"
         >
-          <div class="fixed inset-0 bg-grey-600 bg-opacity-75" />
+          <div class="fixed inset-0 bg-grey-600/75" />
         </TransitionChild>
 
         <div class="fixed inset-0 z-40 flex">
@@ -100,7 +100,7 @@
                 <div class="absolute top-1 right-0 -mr-14 p-1">
                   <button
                     type="button"
-                    class="h-12 w-12 rounded-full flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-white"
+                    class="h-12 w-12 rounded-full flex items-center justify-center focus:outline-hidden focus:ring-2 focus:ring-white"
                     @click="mobileMenuOpen = false"
                   >
                     <XMarkIcon class="h-6 w-6 text-white" aria-hidden="true" />
@@ -108,7 +108,7 @@
                   </button>
                 </div>
               </TransitionChild>
-              <div class="flex-shrink-0 px-4 flex items-center">
+              <div class="shrink-0 px-4 flex items-center">
                 <Link @click="mobileMenuOpen = false" :href="route('dashboard.index')">
                   <img class="h-6" alt="addy.io Logo" src="/svg/icon-logo.svg" />
                 </Link>
@@ -167,7 +167,7 @@
               </div>
             </DialogPanel>
           </TransitionChild>
-          <div class="flex-shrink-0 w-14" aria-hidden="true">
+          <div class="shrink-0 w-14" aria-hidden="true">
             <!-- Dummy element to force sidebar to shrink to fit close icon -->
           </div>
         </div>
@@ -178,11 +178,11 @@
     <div class="flex-1 flex flex-col overflow-hidden min-h-screen md:pl-28">
       <header class="w-full">
         <div
-          class="relative z-10 flex-shrink-0 h-16 bg-white border-b border-grey-200 shadow-sm flex"
+          class="relative z-10 shrink-0 h-16 bg-white border-b border-grey-200 shadow-sm flex dark:bg-grey-900 dark:border-grey-600"
         >
           <button
             type="button"
-            class="border-r border-grey-200 px-4 text-grey-500 focus:outline-none md:hidden"
+            class="border-r border-grey-200 px-4 text-grey-500 focus:outline-hidden md:hidden dark:border-grey-600"
             @click="mobileMenuOpen = true"
           >
             <span class="sr-only">Open sidebar</span>
@@ -192,9 +192,11 @@
             <div class="flex-1 flex items-center">
               <form @submit.prevent="submitSearchForm()" class="w-full flex md:ml-0">
                 <label for="search-input" class="sr-only">Search all resources</label>
-                <div class="relative w-full text-grey-400 focus-within:text-grey-600">
+                <div
+                  class="relative w-full text-grey-400 focus-within:text-grey-600 dark:text-white dark:focus-within:text-white"
+                >
                   <div class="pointer-events-none absolute inset-y-0 left-1.5 flex items-center">
-                    <MagnifyingGlassIcon class="flex-shrink-0 h-5 w-5" aria-hidden="true" />
+                    <MagnifyingGlassIcon class="shrink-0 h-5 w-5" aria-hidden="true" />
                   </div>
                   <input
                     @keyup.esc="
@@ -210,7 +212,7 @@
                     name="search-input"
                     id="search-input"
                     v-model="searchForm.search"
-                    class="h-full w-full leading-none border-indigo-50 border-2 py-2 pl-8 pr-3 text-base text-grey-900 placeholder-grey-500 focus:outline-none focus:border-indigo-50npm focus:ring-0 focus:placeholder-grey-400 outline-none rounded-l-md bg-indigo-50"
+                    class="h-full w-full leading-none border-indigo-50 border-2 py-2 pl-8 pr-3 text-base text-grey-900 placeholder-grey-500 focus:outline-hidden focus:border-indigo-50npm focus:ring-0 focus:placeholder-grey-400 outline-hidden rounded-l-md bg-indigo-50 dark:bg-white/5 dark:placeholder-grey-200 dark:border-grey-400 dark:text-white"
                     placeholder="Search"
                     type="search"
                   />
@@ -227,7 +229,7 @@
                     "
                     class="absolute inset-y-0 right-0 cursor-pointer flex items-center pr-3 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                   >
-                    <XMarkIcon class="h-5 w-5 text-grey-400" aria-hidden="true" />
+                    <XMarkIcon class="h-5 w-5 text-grey-400 dark:text-white" aria-hidden="true" />
                   </div>
                 </div>
               </form>
@@ -247,7 +249,7 @@
                       </div>
                       <ListboxButton
                         class="relative inline-flex items-center bg-indigo-500 p-2 rounded-l-none rounded-r-md text-sm font-medium text-white hover:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 focus:z-10"
-                        style="height: 39px"
+                        style="height: 42px"
                       >
                         <span class="sr-only">Change published status</span>
                         <ChevronDownIcon class="h-5 w-5 text-white" aria-hidden="true" />
@@ -261,7 +263,7 @@
                     leave-to-class="opacity-0"
                   >
                     <ListboxOptions
-                      class="origin-top-right absolute z-10 right-0 mt-2 w-64 rounded-md shadow-lg overflow-hidden bg-white divide-y divide-grey-200 ring-1 ring-black ring-opacity-5 focus:outline-none"
+                      class="origin-top-right absolute z-10 right-0 mt-2 w-64 rounded-md shadow-lg overflow-hidden bg-white divide-y divide-grey-200 ring-1 ring-black/5 focus:outline-hidden dark:bg-grey-900 dark:text-white dark:divide-grey-500"
                     >
                       <ListboxOption
                         as="template"
@@ -272,7 +274,9 @@
                       >
                         <li
                           :class="[
-                            active ? 'text-white bg-indigo-500' : 'text-grey-900',
+                            active
+                              ? 'text-white bg-indigo-500'
+                              : 'text-grey-900 dark:text-grey-100',
                             'cursor-pointer select-none relative p-3 text-sm',
                           ]"
                         >
@@ -283,12 +287,21 @@
                               </p>
                               <span
                                 v-if="selected"
-                                :class="active ? 'text-white' : 'text-indigo-500'"
+                                :class="
+                                  active ? 'text-white' : 'text-indigo-500 dark:text-grey-100'
+                                "
                               >
                                 <CheckIcon class="h-5 w-5" aria-hidden="true" />
                               </span>
                             </div>
-                            <p :class="[active ? 'text-indigo-50' : 'text-grey-500', 'mt-2']">
+                            <p
+                              :class="[
+                                active
+                                  ? 'text-indigo-50 dark:text-white'
+                                  : 'text-grey-500 dark:text-grey-100',
+                                'mt-2',
+                              ]"
+                            >
                               {{ option.description }}
                             </p>
                           </div>
@@ -301,10 +314,10 @@
             </div>
             <div class="ml-2 flex items-center space-x-4 sm:ml-6 sm:space-x-6">
               <!-- Profile dropdown -->
-              <Menu as="div" class="relative flex-shrink-0" role="menu">
+              <Menu as="div" class="relative shrink-0" role="menu">
                 <div>
                   <MenuButton
-                    class="bg-white rounded-sm flex text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                    class="bg-white rounded-sm flex text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-grey-900"
                   >
                     <span class="sr-only">Open user menu</span>
                     <span id="dropdown-username" class="ml-2 md:ml-0 font-medium">{{
@@ -330,7 +343,7 @@
                   leave-to-class="transform opacity-0 scale-95"
                 >
                   <MenuItems
-                    class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none"
+                    class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black/5 focus:outline-hidden dark:bg-grey-900"
                   >
                     <MenuItem v-slot="{ active }" as="div">
                       <a
@@ -338,8 +351,8 @@
                         target="_blank"
                         rel="nofollow noreferrer noopener"
                         :class="[
-                          active ? 'bg-indigo-500 text-white' : 'text-grey-700',
-                          'block w-full px-4 py-2 text-base leading-5 text-left focus:outline-none focus:bg-grey-100 transition',
+                          active ? 'bg-indigo-500 text-white' : 'text-grey-700 dark:text-white',
+                          'block w-full px-4 py-2 text-base leading-5 text-left focus:outline-hidden focus:bg-grey-100 transition dark:focus:bg-grey-700',
                         ]"
                       >
                         <span class="sr-only">API Docs</span>
@@ -358,8 +371,8 @@
                         target="_blank"
                         rel="nofollow noreferrer noopener"
                         :class="[
-                          active ? 'bg-indigo-500 text-white' : 'text-grey-700',
-                          'block w-full px-4 py-2 text-base leading-5 text-left focus:outline-none focus:bg-grey-100 transition',
+                          active ? 'bg-indigo-500 text-white' : 'text-grey-700 dark:text-white',
+                          'block w-full px-4 py-2 text-base leading-5 text-left focus:outline-hidden focus:bg-grey-100 transition dark:focus:bg-grey-700',
                         ]"
                       >
                         <span class="sr-only">Blog</span>
@@ -378,8 +391,8 @@
                         target="_blank"
                         rel="nofollow noreferrer noopener"
                         :class="[
-                          active ? 'bg-indigo-500 text-white' : 'text-grey-700',
-                          'block w-full px-4 py-2 text-base leading-5 text-left focus:outline-none focus:bg-grey-100 transition',
+                          active ? 'bg-indigo-500 text-white' : 'text-grey-700 dark:text-white',
+                          'block w-full px-4 py-2 text-base leading-5 text-left focus:outline-hidden focus:bg-grey-100 transition dark:focus:bg-grey-700',
                         ]"
                       >
                         <span class="sr-only">Help</span>
@@ -392,13 +405,17 @@
                         </span>
                       </a>
                     </MenuItem>
-                    <MenuItem v-slot="{ active }" as="div">
+                    <MenuItem
+                      v-slot="{ active }"
+                      as="div"
+                      v-if="!$page.props.usesExternalAuthentication"
+                    >
                       <Link
                         :href="route('logout')"
                         method="post"
                         as="button"
                         type="button"
-                        class="w-full px-4 py-2 bg-transparent hover:bg-indigo-500 hover:text-white cursor-pointer text-left"
+                        class="w-full px-4 py-2 bg-transparent hover:bg-indigo-500 hover:text-white cursor-pointer text-left focus:bg-grey-100 dark:text-white dark:focus:bg-grey-700"
                       >
                         <span class="sr-only">Logout</span>
                         Logout
@@ -424,14 +441,14 @@
     </div>
     <notifications position="bottom right" />
 
-    <BannerNotification v-if="$page.props.flash">
+    <FlashNotification v-if="$page.props.flash">
       <template v-slot:icon>
         <CheckCircleIcon class="h-6 w-6 text-white" aria-hidden="true" />
       </template>
       <template v-slot:message>
         {{ $page.props.flash }}
       </template>
-    </BannerNotification>
+    </FlashNotification>
   </div>
 </template>
 
@@ -465,10 +482,11 @@ import {
   ExclamationTriangleIcon,
   FunnelIcon,
   CheckCircleIcon,
+  NoSymbolIcon,
 } from '@heroicons/vue/24/outline'
 import { MagnifyingGlassIcon } from '@heroicons/vue/24/solid'
 import { CheckIcon, ChevronDownIcon, ArrowTopRightOnSquareIcon } from '@heroicons/vue/20/solid'
-import BannerNotification from './../Components/BannerNotification.vue'
+import FlashNotification from './../Components/FlashNotification.vue'
 
 const props = defineProps({
   search: {
@@ -488,6 +506,7 @@ const sidebarNavigation = [
     route: 'failed_deliveries.index',
     icon: ExclamationTriangleIcon,
   },
+  { name: 'Blocklist', route: 'blocklist.index', icon: NoSymbolIcon },
   { name: 'Settings', route: 'settings.show', icon: Cog6ToothIcon },
 ]
 
@@ -511,6 +530,11 @@ const searchOptions = [
     title: 'Failed Deliveries',
     route: 'failed_deliveries.index',
     description: 'Search by error message',
+  },
+  {
+    title: 'Blocklist',
+    route: 'blocklist.index',
+    description: 'Search by value or type',
   },
 ]
 

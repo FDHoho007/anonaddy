@@ -2,14 +2,16 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Enums\LoginRedirect;
 use App\Http\Controllers\Controller;
 use App\Models\Username;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 class LoginController extends Controller
 {
@@ -43,18 +45,6 @@ class LoginController extends Controller
         $this->middleware('guest')->except('logout');
     }
 
-    public function redirectTo()
-    {
-        // Dynamic redirect setting to allow users to choose to go to /aliases page instead etc.
-        return match (user()->login_redirect) {
-            LoginRedirect::ALIASES => '/aliases',
-            LoginRedirect::RECIPIENTS => '/recipients',
-            LoginRedirect::USERNAMES => '/usernames',
-            LoginRedirect::DOMAINS => '/domains',
-            default => '/',
-        };
-    }
-
     public function username()
     {
         return 'id';
@@ -75,7 +65,7 @@ class LoginController extends Controller
      *
      * @return void
      *
-     * @throws \Illuminate\Validation\ValidationException
+     * @throws ValidationException
      */
     protected function validateLogin(Request $request)
     {
@@ -103,7 +93,7 @@ class LoginController extends Controller
     /**
      * Send the response after the user was authenticated.
      *
-     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
+     * @return RedirectResponse|JsonResponse
      */
     protected function sendLoginResponse(Request $request)
     {
@@ -115,19 +105,15 @@ class LoginController extends Controller
             return $response;
         }
 
-        // If the intended path is just the dashboard then ignore and use the user's login redirect instead
-        $redirectTo = $this->redirectTo();
-        $intended = session()->pull('url.intended');
-
-        return $intended === url('/') ? redirect()->to($redirectTo) : redirect()->intended($intended ?? $redirectTo);
+        return getLoginRedirectResponse();
     }
 
     /**
      * Get the failed login response instance.
      *
-     * @return \Symfony\Component\HttpFoundation\Response
+     * @return Response
      *
-     * @throws \Illuminate\Validation\ValidationException
+     * @throws ValidationException
      */
     protected function sendFailedLoginResponse(Request $request)
     {

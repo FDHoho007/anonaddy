@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Facades\Webauthn;
 use Closure;
+use Illuminate\Http\Request;
 use PragmaRX\Google2FALaravel\Support\Authenticator;
 
 class VerifyTwoFactorAuthMethods
@@ -11,22 +12,25 @@ class VerifyTwoFactorAuthMethods
     /**
      * Handle an incoming request.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  Request  $request
      * @return mixed
      */
     public function handle($request, Closure $next)
     {
         $user = $request->user();
 
-        // If user has no 2FA methods enabled, continue
-        if (! $user->hasAnyTwoFactorEnabled()) {
+        // If user has no 2FA methods enabled or uses external authentication, continue
+        if (! $user->hasAnyTwoFactorEnabled() || usesExternalAuthentication()) {
             return $next($request);
         }
 
         // Check if user is already authenticated with any 2FA method
         $totpAuthenticator = app(Authenticator::class)->boot($request);
 
-        if ($totpAuthenticator->isAuthenticated() || Webauthn::check()) {
+        $totpAuthenticated = $user->hasTotpEnabled() && $totpAuthenticator->isAuthenticated();
+        $webauthnAuthenticated = $user->hasWebauthnEnabled() && Webauthn::check();
+
+        if ($totpAuthenticated || $webauthnAuthenticated) {
             return $next($request);
         }
 

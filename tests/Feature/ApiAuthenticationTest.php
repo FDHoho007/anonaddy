@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Notifications\IncorrectOtpNotification;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequestsWithRedis;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -34,6 +36,33 @@ class ApiAuthenticationTest extends TestCase
 
         $response->assertSuccessful();
         $this->assertEquals($this->user->tokens[0]->token, hash('sha256', $response->json()['api_key']));
+    }
+
+    #[Test]
+    public function user_can_retrieve_current_api_token_details()
+    {
+        $token = $this->user->createToken('Firefox');
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token->plainTextToken,
+        ])->json('GET', '/api/v1/api-token-details');
+
+        $response->assertSuccessful();
+        $response->assertJson([
+            'name' => 'Firefox',
+            'created_at' => $token->accessToken->created_at?->toDateTimeString(),
+            'expires_at' => null,
+        ]);
+    }
+
+    #[Test]
+    public function user_cannot_retrieve_api_token_details_with_session_authentication()
+    {
+        $response = $this->actingAs($this->user)
+            ->json('GET', '/api/v1/api-token-details');
+
+        $response->assertNotFound();
+        $response->assertSeeText('Current token could not be found');
     }
 
     #[Test]
@@ -127,6 +156,7 @@ class ApiAuthenticationTest extends TestCase
     public function user_must_provide_correct_otp_if_enabled()
     {
         $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
+        Notification::fake();
 
         $secret = app('pragmarx.google2fa')->generateSecretKey();
         $this->user->update([
@@ -145,7 +175,7 @@ class ApiAuthenticationTest extends TestCase
         $mfaKey = $response->json()['mfa_key'];
         $csrfToken = $response->json()['csrf_token'];
         $this->assertNotNull($mfaKey);
-        $this->assertNotNull($csrfToken);
+        $this->assertSame('deprecated', $csrfToken);
 
         $response2 = $this->withHeaders([
             'X-CSRF-TOKEN' => $csrfToken,
@@ -157,6 +187,7 @@ class ApiAuthenticationTest extends TestCase
 
         $response2->assertUnauthorized();
         $response2->assertExactJson(['message' => 'The \'One Time Password\' typed was wrong.']);
+        Notification::assertSentTo($this->user, IncorrectOtpNotification::class);
 
         $response3 = $this->withHeaders([
             'X-CSRF-TOKEN' => $csrfToken,
@@ -168,6 +199,44 @@ class ApiAuthenticationTest extends TestCase
 
         $response3->assertSuccessful();
         $this->assertEquals($this->user->tokens[0]->token, hash('sha256', $response3->json()['api_key']));
+    }
+
+    #[Test]
+    public function user_can_complete_mfa_without_csrf_header()
+    {
+        $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
+
+        $secret = app('pragmarx.google2fa')->generateSecretKey();
+
+        $this->user->update([
+            'two_factor_secret' => $secret,
+            'two_factor_enabled' => true,
+        ]);
+
+        $loginResponse = $this->json('POST', '/api/auth/login', [
+            'username' => 'johndoe',
+            'password' => 'mypassword',
+            'device_name' => 'Firefox',
+        ]);
+
+        $loginResponse->assertStatus(422);
+
+        $mfaKey = $loginResponse->json('mfa_key');
+        $this->assertNotNull($mfaKey);
+
+        // No X-CSRF-TOKEN header on purpose
+        $mfaResponse = $this->json('POST', '/api/auth/mfa', [
+            'mfa_key' => $mfaKey,
+            'otp' => app('pragmarx.google2fa')->getCurrentOtp($secret),
+            'device_name' => 'Firefox',
+        ]);
+
+        $mfaResponse->assertSuccessful();
+
+        $this->assertEquals(
+            $this->user->tokens[0]->token,
+            hash('sha256', $mfaResponse->json('api_key'))
+        );
     }
 
     #[Test]
@@ -210,6 +279,26 @@ class ApiAuthenticationTest extends TestCase
         $this->assertDatabaseMissing('usernames', [
             'username' => 'janedoe',
         ]);
+    }
+
+    #[Test]
+    public function user_cannot_delete_account_via_api_when_external()
+    {
+        $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
+
+        $this->user->defaultUsername->username = 'janedoe';
+        $this->user->defaultUsername->external_id = 'test';
+        $this->user->defaultUsername->save();
+
+        $token = $this->user->createToken('New');
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token->plainTextToken,
+        ])->json('POST', '/api/auth/delete-account', [
+            'password' => 'mypassword',
+        ]);
+
+        $response->assertStatus(403);
     }
 
     #[Test]

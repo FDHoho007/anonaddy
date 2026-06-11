@@ -35,15 +35,19 @@ class FailedDelivery extends Model
         'recipient_id',
         'alias_id',
         'is_stored',
+        'quarantined',
         'resent',
         'bounce_type',
         'remote_mta',
         'sender',
         'destination',
         'email_type',
+        'ir_dedupe_key',
         'status',
         'code',
         'attempted_at',
+        'created_at',
+        'updated_at',
     ];
 
     protected $casts = [
@@ -52,6 +56,7 @@ class FailedDelivery extends Model
         'recipient_id' => 'string',
         'alias_id' => 'string',
         'is_stored' => 'boolean',
+        'quarantined' => 'boolean',
         'resent' => 'boolean',
         'attempted_at' => 'datetime',
         'created_at' => 'datetime',
@@ -93,7 +98,7 @@ class FailedDelivery extends Model
                 'R' => 'Reply',
                 'S' => 'Send',
                 'RP' => 'Reset Password',
-                'FDN' => 'Failed Delivery',
+                'FDN' => 'Failed Delivery Notification',
                 'DMI' => 'Domain MX Invalid',
                 'DRU' => 'Default Recipient Updated',
                 'NRV' => 'New Recipient Verified',
@@ -109,7 +114,31 @@ class FailedDelivery extends Model
                 'RSL' => 'Reached Reply/Send Limit',
                 'SRSA' => 'Spam Reply/Send Attempt',
                 'AIF' => 'Aliases Import Finished',
+                'IR' => 'Inbound Rejection',
+                'ADLN' => 'Alias Deleted by One-Click Unsubscribe',
+                'ADUN' => 'Alias Deactivated by One-Click Unsubscribe',
                 default => 'Forward',
+            },
+        );
+    }
+
+    protected function type(): Attribute
+    {
+        return Attribute::make(
+            get: function (): string {
+                if ($this->ir_dedupe_key) {
+                    return 'inbound';
+                }
+
+                if ($this->quarantined) {
+                    return 'inbound_quarantined';
+                }
+
+                if ($this->getRawOriginal('email_type') === 'IR') {
+                    return 'inbound';
+                }
+
+                return 'outbound';
             },
         );
     }

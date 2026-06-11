@@ -4,14 +4,14 @@
     @keyup.space="toggle"
     :class="[
       modelValue ? 'bg-cyan-500' : 'bg-grey-300',
-      'relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600',
+      'relative inline-flex shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600',
     ]"
   >
     <span class="sr-only">Use setting</span>
     <span
       :class="[
         modelValue ? 'translate-x-5' : 'translate-x-0',
-        'pointer-events-none relative inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200',
+        'pointer-events-none relative inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 dark:bg-grey-900',
       ]"
     >
       <span
@@ -49,7 +49,6 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
 import { Switch } from '@headlessui/vue'
 
 const emit = defineEmits(['update:modelValue', 'on', 'off'])

@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\AliasExportController;
 use App\Http\Controllers\AliasImportController;
-use App\Http\Controllers\Auth\ApiAuthenticationController;
+use App\Http\Controllers\AliasSeparatorController;
 use App\Http\Controllers\Auth\BackupCodeController;
 use App\Http\Controllers\Auth\ForgotUsernameController;
 use App\Http\Controllers\Auth\PersonalAccessTokenController;
@@ -10,27 +10,34 @@ use App\Http\Controllers\Auth\TwoFactorAuthController;
 use App\Http\Controllers\Auth\WebauthnController;
 use App\Http\Controllers\Auth\WebauthnEnabledKeyController;
 use App\Http\Controllers\BannerLocationController;
+use App\Http\Controllers\BlocklistOneClickController;
 use App\Http\Controllers\BrowserSessionController;
+use App\Http\Controllers\DarkModeController;
 use App\Http\Controllers\DeactivateAliasController;
 use App\Http\Controllers\DefaultAliasDomainController;
 use App\Http\Controllers\DefaultAliasFormatController;
 use App\Http\Controllers\DefaultRecipientController;
 use App\Http\Controllers\DefaultUsernameController;
+use App\Http\Controllers\DeleteAliasController;
 use App\Http\Controllers\DisplayFromFormatController;
 use App\Http\Controllers\DomainVerificationController;
 use App\Http\Controllers\EmailSubjectController;
+use App\Http\Controllers\FailedDeliveryNotificationPreferenceController;
 use App\Http\Controllers\FromNameController;
+use App\Http\Controllers\ListUnsubscribeBehaviourController;
 use App\Http\Controllers\LoginRedirectController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\SaveAliasLastUsedController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ShowAliasController;
+use App\Http\Controllers\ShowBlocklistController;
 use App\Http\Controllers\ShowDashboardController;
 use App\Http\Controllers\ShowDomainController;
 use App\Http\Controllers\ShowFailedDeliveryController;
 use App\Http\Controllers\ShowRecipientController;
 use App\Http\Controllers\ShowRuleController;
 use App\Http\Controllers\ShowUsernameController;
+use App\Http\Controllers\SpamWarningBehaviourController;
 use App\Http\Controllers\StoreFailedDeliveryController;
 use App\Http\Controllers\TestAutoCreateRegexController;
 use App\Http\Controllers\UseReplyToController;
@@ -50,12 +57,6 @@ use Illuminate\Support\Facades\Route;
 
 Auth::routes(['verify' => true, 'register' => config('anonaddy.enable_registration')]);
 
-// API login route needs CSRF middleware so that it can pass it to api/auth/mfa
-Route::controller(ApiAuthenticationController::class)->prefix('api/auth')->group(function () {
-    Route::post('/login', 'login');
-    Route::post('/mfa', 'mfa');
-});
-
 Route::controller(ForgotUsernameController::class)->group(function () {
     Route::get('/username/reminder', 'show')->name('username.reminder.show');
     Route::post('/username/email', 'sendReminderEmail')->name('username.email');
@@ -68,6 +69,18 @@ Route::controller(BackupCodeController::class)->group(function () {
     Route::get('/login/backup-code', 'index')->name('login.backup_code.index');
     Route::post('/login/backup-code', 'login')->name('login.backup_code.login');
 });
+
+// One-Click unsubscribe to deactivate alias with POST request, no auth required... signed
+Route::post('/deactivate-one-click/{alias}', [DeactivateAliasController::class, 'deactivatePost'])->name('deactivate_post');
+
+// One-Click unsubscribe to delete alias with POST request, no auth required... signed
+Route::post('/delete-one-click/{alias}', [DeleteAliasController::class, 'deletePost'])->name('delete_post');
+
+// One-Click unsubscribe to block sender email with POST request, no auth required... signed
+Route::post('/block-email-one-click/{alias}', [BlocklistOneClickController::class, 'blockEmailPost'])->name('block_email_post');
+
+// One-Click unsubscribe to block sender domain with POST request, no auth required... signed
+Route::post('/block-domain-one-click/{alias}', [BlocklistOneClickController::class, 'blockDomainPost'])->name('block_domain_post');
 
 Route::group([
     'middleware' => array_filter(array_merge(
@@ -124,6 +137,8 @@ Route::middleware(['auth', 'verified', '2fa'])->group(function () {
 
     Route::get('/failed-deliveries', [ShowFailedDeliveryController::class, 'index'])->name('failed_deliveries.index');
 
+    Route::get('/blocklist', [ShowBlocklistController::class, 'index'])->name('blocklist.index');
+
     Route::post('/test-auto-create-regex', [TestAutoCreateRegexController::class, 'index'])->name('test_auto_create_regex.index');
 });
 
@@ -151,6 +166,8 @@ Route::group([
 
     Route::post('/default-alias-format', [DefaultAliasFormatController::class, 'update'])->name('settings.default_alias_format');
 
+    Route::post('/alias-separator', [AliasSeparatorController::class, 'update'])->name('settings.alias_separator');
+
     Route::post('/display-from-format', [DisplayFromFormatController::class, 'update'])->name('settings.display_from_format');
 
     Route::post('/login-redirect', [LoginRedirectController::class, 'update'])->name('settings.login_redirect');
@@ -161,7 +178,15 @@ Route::group([
 
     Route::post('/banner-location', [BannerLocationController::class, 'update'])->name('settings.banner_location');
 
+    Route::post('/spam-warning-behaviour', [SpamWarningBehaviourController::class, 'update'])->name('settings.spam_warning_behaviour');
+
+    Route::post('/list-unsubscribe-behaviour', [ListUnsubscribeBehaviourController::class, 'update'])->name('settings.list_unsubscribe_behaviour');
+
     Route::post('/store-failed-deliveries', [StoreFailedDeliveryController::class, 'update'])->name('settings.store_failed_deliveries');
+
+    Route::post('/failed-delivery-notification-preference', [FailedDeliveryNotificationPreferenceController::class, 'update'])->name('settings.failed_delivery_notification_preference');
+
+    Route::post('/dark-mode', [DarkModeController::class, 'update'])->name('settings.dark_mode');
 
     Route::post('/save-alias-last-used', [SaveAliasLastUsedController::class, 'update'])->name('settings.save_alias_last_used');
 

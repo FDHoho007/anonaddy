@@ -9,6 +9,26 @@ use Inertia\Inertia;
 
 class ShowAliasController extends Controller
 {
+    /** Allowed sort columns for aliases (safe for ORDER BY / orderByRaw) */
+    private const ALLOWED_SORT_COLUMNS = [
+        'local_part',
+        'domain',
+        'email',
+        'emails_forwarded',
+        'emails_blocked',
+        'emails_replied',
+        'emails_sent',
+        'last_forwarded',
+        'last_blocked',
+        'last_replied',
+        'last_sent',
+        'last_used',
+        'active',
+        'created_at',
+        'updated_at',
+        'deleted_at',
+    ];
+
     public function index(Request $request)
     {
         $validated = $request->validate([
@@ -47,38 +67,8 @@ class ShowAliasController extends Controller
                 'max:20',
                 'min:3',
                 Rule::in([
-                    'local_part',
-                    'domain',
-                    'email',
-                    'emails_forwarded',
-                    'emails_blocked',
-                    'emails_replied',
-                    'emails_sent',
-                    'last_forwarded',
-                    'last_blocked',
-                    'last_replied',
-                    'last_sent',
-                    'last_used',
-                    'active',
-                    'created_at',
-                    'updated_at',
-                    'deleted_at',
-                    '-local_part',
-                    '-domain',
-                    '-email',
-                    '-emails_forwarded',
-                    '-emails_blocked',
-                    '-emails_replied',
-                    '-emails_sent',
-                    '-last_forwarded',
-                    '-last_blocked',
-                    '-last_replied',
-                    '-last_sent',
-                    '-last_used',
-                    '-active',
-                    '-created_at',
-                    '-updated_at',
-                    '-deleted_at',
+                    ...self::ALLOWED_SORT_COLUMNS,
+                    ...array_map(fn (string $column): string => '-'.$column, self::ALLOWED_SORT_COLUMNS),
                 ]),
             ],
             'recipient' => [
@@ -93,6 +83,11 @@ class ShowAliasController extends Controller
                 'nullable',
                 'uuid',
             ],
+            'pinned' => [
+                'nullable',
+                'in:true,false,all',
+                'string',
+            ],
         ]);
 
         $sort = $request->session()->get('aliasesSort', 'created_at');
@@ -102,6 +97,8 @@ class ShowAliasController extends Controller
         // current alias status options: active, inactive, all, deleted, active_inactive
         $currentAliasStatus = $request->session()->get('currentAliasStatus', 'active_inactive');
 
+        $pinnedFilter = $request->session()->get('aliasesPinnedFilter');
+
         if ($request->has('sort')) {
             $direction = strpos($request->input('sort'), '-') === 0 ? 'desc' : 'asc';
             $sort = ltrim($request->input('sort'), '-');
@@ -109,6 +106,11 @@ class ShowAliasController extends Controller
 
             $request->session()->put('aliasesSort', $sort);
             $request->session()->put('aliasesSortDirection', $direction);
+        }
+
+        // Ensure sort/direction are whitelisted even when from session
+        if (! in_array($sort, self::ALLOWED_SORT_COLUMNS, true)) {
+            $sort = 'created_at';
         }
 
         if ($request->has('active')) {
@@ -125,8 +127,14 @@ class ShowAliasController extends Controller
             $request->session()->put('currentAliasStatus', $currentAliasStatus);
         }
 
+        if ($request->has('pinned')) {
+            $pinnedFilter = $request->input('pinned') === 'all' ? null : $request->input('pinned');
+            $request->session()->put('aliasesPinnedFilter', $pinnedFilter);
+        }
+
         $aliases = user()->aliases()
-            ->select(['id', 'user_id', 'aliasable_id', 'aliasable_type', 'local_part', 'extension', 'email', 'domain', 'description', 'active', 'emails_forwarded', 'emails_blocked', 'emails_replied', 'emails_sent', 'last_forwarded', 'last_blocked', 'last_replied', 'last_sent', 'created_at', 'deleted_at'])
+            ->select(['id', 'user_id', 'aliasable_id', 'aliasable_type', 'local_part', 'extension', 'email', 'domain', 'description', 'active', 'pinned', 'emails_forwarded', 'emails_blocked', 'emails_replied', 'emails_sent', 'last_forwarded', 'last_blocked', 'last_replied', 'last_sent', 'created_at', 'deleted_at'])
+            ->orderBy('pinned', 'desc')
             ->when($request->input('recipient'), function ($query, $id) {
                 return $query->usesRecipientWithId($id, $id === user()->default_recipient_id);
             })
@@ -181,6 +189,9 @@ class ShowAliasController extends Controller
 
                 return $query->whereNotIn('domain', config('anonaddy.all_domains'));
             })
+            ->when($pinnedFilter, function ($query, $value) {
+                return $query->where('pinned', $value === 'true');
+            })
             ->with([
                 'recipients:id,email',
                 'aliasable.defaultRecipient:id,email',
@@ -225,6 +236,7 @@ class ShowAliasController extends Controller
             'sortDirection' => $direction,
             'currentAliasStatus' => $currentAliasStatus,
             'sharedDomains' => user()->sharedDomainOptions(),
+            'pinnedFilter' => $pinnedFilter,
         ]);
     }
 

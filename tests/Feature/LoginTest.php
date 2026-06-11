@@ -110,6 +110,84 @@ class LoginTest extends TestCase
     }
 
     #[Test]
+    public function user_should_provide_2fa_when_2fa_is_enabled_and_user_is_internal()
+    {
+        $this->user->update([
+            'two_factor_enabled' => true,
+            'two_factor_secret' => 'secret',
+            'two_factor_backup_code' => bcrypt($code = Str::random(40)),
+        ]);
+
+        $response = $this->post('/login', [
+            'username' => 'johndoe',
+            'password' => 'mypassword',
+        ]);
+
+        $response
+            ->assertRedirect('/')
+            ->assertSessionHasNoErrors();
+
+        $secondFactor = $this->get('/recipients');
+
+        $secondFactor->assertSee('2nd Factor Authentication');
+    }
+
+    #[Test]
+    public function user_can_login_successfully_without_providing_2fa_when_external()
+    {
+        $this->user->update([
+            'two_factor_enabled' => true,
+            'two_factor_secret' => 'secret',
+            'two_factor_backup_code' => bcrypt($code = Str::random(40)),
+        ]);
+
+        $this->user->defaultUsername->external_id = 'test';
+        $this->user->defaultUsername->save();
+
+        $response = $this->post('/login', [
+            'username' => 'johndoe',
+            'password' => 'mypassword',
+        ]);
+
+        $response
+            ->assertRedirect('/')
+            ->assertSessionHasNoErrors();
+
+        $secondFactor = $this->get('/recipients');
+
+        $secondFactor->assertSee('Recipients');
+    }
+
+    #[Test]
+    public function stale_totp_session_does_not_bypass_webauthn_only_user()
+    {
+        $this->user->update([
+            'two_factor_enabled' => false,
+            'webauthn_enabled' => true,
+        ]);
+
+        $this->user->webauthnKeys()->create([
+            'name' => 'key',
+            'enabled' => true,
+            'credentialId' => 'xyz',
+            'type' => 'public-key',
+            'transports' => [],
+            'attestationType' => 'none',
+            'trustPath' => '{"type":"Webauthn\\\\TrustPath\\\\EmptyTrustPath"}',
+            'aaguid' => '00000000-0000-0000-0000-000000000000',
+            'credentialPublicKey' => 'xyz',
+            'counter' => 0,
+        ]);
+
+        $response = $this
+            ->actingAs($this->user)
+            ->withSession(['two_factor_auth' => true])
+            ->get('/recipients');
+
+        $response->assertRedirect(route('webauthn.login'));
+    }
+
+    #[Test]
     public function user_can_receive_username_reminder_email()
     {
         $this->withoutMiddleware();

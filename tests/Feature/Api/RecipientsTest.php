@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Alias;
 use App\Models\Domain;
 use App\Models\Recipient;
 use App\Notifications\CustomVerifyEmail;
@@ -33,6 +34,7 @@ class RecipientsTest extends TestCase
 
         // Assert
         $response->assertSuccessful();
+        $this->assertArrayHasKey('aliases_count', $response->json()['data'][0]);
         $this->assertCount(4, $response->json()['data']);
     }
 
@@ -51,6 +53,47 @@ class RecipientsTest extends TestCase
         $response->assertSuccessful();
         $this->assertCount(1, $response->json());
         $this->assertEquals($recipient->email, $response->json()['data']['email']);
+        $this->assertArrayHasKey('aliases_count', $response->json()['data']);
+    }
+
+    #[Test]
+    public function recipients_index_omits_alias_count_when_filter_alias_count_is_false()
+    {
+        Recipient::factory()->create(['user_id' => $this->user->id]);
+
+        $response = $this->json('GET', '/api/v1/recipients?filter[alias_count]=false');
+
+        $response->assertSuccessful();
+        $this->assertArrayNotHasKey('aliases_count', $response->json()['data'][0]);
+    }
+
+    #[Test]
+    public function recipients_index_alias_count_excludes_soft_deleted_aliases(): void
+    {
+        $recipient = Recipient::factory()->create(['user_id' => $this->user->id]);
+        $activeAlias = Alias::factory()->create(['user_id' => $this->user->id]);
+        $deletedAlias = Alias::factory()->create(['user_id' => $this->user->id]);
+        $activeAlias->recipients()->attach($recipient->id);
+        $deletedAlias->recipients()->attach($recipient->id);
+        $deletedAlias->delete();
+
+        $response = $this->json('GET', '/api/v1/recipients');
+
+        $response->assertSuccessful();
+        $row = collect($response->json('data'))->firstWhere('id', $recipient->id);
+        $this->assertNotNull($row);
+        $this->assertSame(1, (int) $row['aliases_count']);
+    }
+
+    #[Test]
+    public function recipient_show_omits_alias_count_when_filter_alias_count_is_false()
+    {
+        $recipient = Recipient::factory()->create(['user_id' => $this->user->id]);
+
+        $response = $this->json('GET', '/api/v1/recipients/'.$recipient->id.'?filter[alias_count]=false');
+
+        $response->assertSuccessful();
+        $this->assertArrayNotHasKey('aliases_count', $response->json()['data']);
     }
 
     #[Test]
@@ -270,8 +313,8 @@ class RecipientsTest extends TestCase
         $response = $this->json('DELETE', '/api/v1/recipient-keys/'.$recipient->id);
 
         $response->assertStatus(204);
-        $this->assertNull($this->user->recipients[0]->fingerprint);
-        $this->assertFalse($this->user->recipients[0]->should_encrypt);
+        $this->assertNull($this->user->recipients()->find($recipient->id)->fingerprint);
+        $this->assertFalse($this->user->recipients()->find($recipient->id)->should_encrypt);
     }
 
     #[Test]
@@ -303,7 +346,7 @@ class RecipientsTest extends TestCase
         $response = $this->json('DELETE', '/api/v1/encrypted-recipients/'.$recipient->id);
 
         $response->assertStatus(204);
-        $this->assertFalse($this->user->recipients[0]->should_encrypt);
+        $this->assertFalse($this->user->recipients()->find($recipient->id)->should_encrypt);
     }
 
     #[Test]
@@ -333,7 +376,7 @@ class RecipientsTest extends TestCase
         $response = $this->json('DELETE', '/api/v1/allowed-recipients/'.$recipient->id);
 
         $response->assertStatus(204);
-        $this->assertFalse($this->user->recipients[1]->can_reply_send);
+        $this->assertFalse($this->user->recipients()->find($recipient->id)->can_reply_send);
     }
 
     #[Test]
@@ -365,7 +408,7 @@ class RecipientsTest extends TestCase
         $response = $this->json('DELETE', '/api/v1/inline-encrypted-recipients/'.$recipient->id);
 
         $response->assertStatus(204);
-        $this->assertFalse($this->user->recipients[0]->inline_encryption);
+        $this->assertFalse($this->user->recipients()->find($recipient->id)->inline_encryption);
     }
 
     #[Test]
@@ -397,6 +440,66 @@ class RecipientsTest extends TestCase
         $response = $this->json('DELETE', '/api/v1/protected-headers-recipients/'.$recipient->id);
 
         $response->assertStatus(204);
-        $this->assertFalse($this->user->recipients[0]->protected_headers);
+        $this->assertFalse($this->user->recipients()->find($recipient->id)->protected_headers);
+    }
+
+    #[Test]
+    public function user_can_turn_on_remove_pgp_keys()
+    {
+        $recipient = Recipient::factory()->create([
+            'user_id' => $this->user->id,
+            'remove_pgp_keys' => false,
+        ]);
+
+        $response = $this->json('POST', '/api/v1/remove-pgp-keys-recipients/', [
+            'id' => $recipient->id,
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertEquals(true, $response->getData()->data->remove_pgp_keys);
+    }
+
+    #[Test]
+    public function user_can_turn_off_remove_pgp_keys()
+    {
+        $recipient = Recipient::factory()->create([
+            'user_id' => $this->user->id,
+            'remove_pgp_keys' => true,
+        ]);
+
+        $response = $this->json('DELETE', '/api/v1/remove-pgp-keys-recipients/'.$recipient->id);
+
+        $response->assertStatus(204);
+        $this->assertFalse($this->user->recipients()->find($recipient->id)->remove_pgp_keys);
+    }
+
+    #[Test]
+    public function user_can_turn_on_remove_pgp_signatures()
+    {
+        $recipient = Recipient::factory()->create([
+            'user_id' => $this->user->id,
+            'remove_pgp_signatures' => false,
+        ]);
+
+        $response = $this->json('POST', '/api/v1/remove-pgp-signatures-recipients/', [
+            'id' => $recipient->id,
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertEquals(true, $response->getData()->data->remove_pgp_signatures);
+    }
+
+    #[Test]
+    public function user_can_turn_off_remove_pgp_signatures()
+    {
+        $recipient = Recipient::factory()->create([
+            'user_id' => $this->user->id,
+            'remove_pgp_signatures' => true,
+        ]);
+
+        $response = $this->json('DELETE', '/api/v1/remove-pgp-signatures-recipients/'.$recipient->id);
+
+        $response->assertStatus(204);
+        $this->assertFalse($this->user->recipients()->find($recipient->id)->remove_pgp_signatures);
     }
 }

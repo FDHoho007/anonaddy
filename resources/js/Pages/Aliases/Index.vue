@@ -5,8 +5,8 @@
 
     <div class="sm:flex sm:items-center mb-6">
       <div class="sm:flex-auto">
-        <h1 class="text-2xl font-semibold text-grey-900">Aliases</h1>
-        <p class="mt-2 text-sm text-grey-700">
+        <h1 class="text-2xl font-semibold text-grey-900 dark:text-white">Aliases</h1>
+        <p class="mt-2 text-sm text-grey-700 dark:text-grey-200">
           A list of all the aliases
           {{
             Object.keys(route().params).length || currentAliasStatus !== 'active_inactive'
@@ -15,7 +15,7 @@
           }}
           <button @click="moreInfoOpen = !moreInfoOpen">
             <InformationCircleIcon
-              class="h-6 w-6 inline-block cursor-pointer text-grey-500"
+              class="h-6 w-6 inline-block cursor-pointer text-grey-500 dark:text-grey-200"
               title="Click for more information"
             />
           </button>
@@ -39,19 +39,22 @@
         Object.keys(route().params).length ||
         currentAliasStatus !== 'active_inactive'
       "
-      class="flex flex-col sm:flex-row justify-between items-center mb-4 bg-white rounded-lg shadow"
+      class="flex flex-col sm:flex-row justify-between items-center mb-4 bg-white rounded-lg shadow dark:bg-grey-900"
     >
       <div class="relative py-4 flex items-center space-x-1.5 px-4 text-sm sm:px-6">
         <Listbox as="div" v-model="showAliasStatus">
           <div class="relative">
             <div>
               <ListboxButton
-                class="inline-flex items-center text-sm text-grey-700 hover:text-grey-900 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                class="inline-flex items-center text-sm text-grey-700 hover:text-grey-900 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-grey-200 dark:hover:text-grey-300"
               >
                 <span class="sr-only">Change display</span>
                 <ListboxLabel class="cursor-pointer">Display</ListboxLabel>
                 <p class="ml-1 font-medium">{{ showAliasStatus.label }}</p>
-                <ChevronDownIcon class="h-5 w-5 text-grey-700" aria-hidden="true" />
+                <ChevronDownIcon
+                  class="h-5 w-5 text-grey-700 dark:text-grey-200"
+                  aria-hidden="true"
+                />
               </ListboxButton>
             </div>
 
@@ -61,7 +64,7 @@
               leave-to-class="opacity-0"
             >
               <ListboxOptions
-                class="absolute z-20 mt-2 w-48 origin-top-left overflow-hidden rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                class="absolute z-20 mt-2 w-48 origin-top-left overflow-hidden rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-hidden dark:bg-grey-900"
               >
                 <ListboxOption
                   as="template"
@@ -72,7 +75,7 @@
                 >
                   <li
                     :class="[
-                      active ? 'text-white bg-indigo-500' : 'text-grey-900',
+                      active ? 'text-white bg-indigo-500' : 'text-grey-900 dark:text-grey-100',
                       'cursor-pointer select-none p-2 text-sm',
                     ]"
                   >
@@ -81,7 +84,10 @@
                         <p :class="selected ? 'font-semibold' : 'font-normal'">
                           {{ option.label }}
                         </p>
-                        <span v-if="selected" :class="active ? 'text-white' : 'text-indigo-500'">
+                        <span
+                          v-if="selected"
+                          :class="active ? 'text-white' : 'text-indigo-500 dark:text-grey-100'"
+                        >
                           <CheckIcon class="h-5 w-5" aria-hidden="true" />
                         </span>
                       </div>
@@ -94,25 +100,92 @@
         </Listbox>
         <span
           v-if="['all', 'active_inactive', 'active'].includes(showAliasStatus.value)"
-          class="bg-green-100 tooltip outline-none h-4 w-4 rounded-full flex items-center justify-center"
+          class="bg-green-100 tooltip outline-hidden h-4 w-4 rounded-full flex items-center justify-center"
           data-tippy-content="Active"
           tabindex="-1"
           ><span class="bg-green-400 h-2 w-2 rounded-full"></span
         ></span>
         <span
           v-if="['all', 'active_inactive', 'inactive'].includes(showAliasStatus.value)"
-          class="bg-grey-100 tooltip outline-none h-4 w-4 rounded-full flex items-center justify-center"
+          class="bg-grey-100 tooltip outline-hidden h-4 w-4 rounded-full flex items-center justify-center"
           data-tippy-content="Inactive"
           tabindex="-1"
           ><span class="bg-grey-400 h-2 w-2 rounded-full"></span
         ></span>
         <span
           v-if="['all', 'deleted'].includes(showAliasStatus.value)"
-          class="bg-red-100 tooltip outline-none h-4 w-4 rounded-full flex items-center justify-center"
+          class="bg-red-100 tooltip outline-hidden h-4 w-4 rounded-full flex items-center justify-center"
           data-tippy-content="Deleted"
           tabindex="-1"
           ><span class="bg-red-400 h-2 w-2 rounded-full"></span
         ></span>
+        <Listbox as="div" v-model="selectedPinnedFilter" class="ml-1">
+          <div class="relative">
+            <ListboxButton
+              class="inline-flex items-center text-sm rounded px-2 py-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 text-grey-700 hover:text-grey-900 dark:text-grey-200 dark:hover:text-grey-300"
+            >
+              <span class="sr-only">Pin filter</span>
+              <span>{{ selectedPinnedFilter.label }} </span>
+              <ChevronDownIcon
+                class="ml-1 h-4 w-4 text-grey-500 dark:text-grey-400"
+                aria-hidden="true"
+              />
+              <span
+                class="ml-1 outline-hidden inline-flex items-center"
+                :class="
+                  selectedPinnedFilter.value === 'unpinned'
+                    ? 'text-grey-500 dark:text-grey-400'
+                    : 'text-yellow-500 dark:text-yellow-400'
+                "
+                aria-hidden="true"
+              >
+                <icon
+                  name="pin"
+                  class="inline-block w-4 h-4"
+                  :class="
+                    selectedPinnedFilter.value === 'unpinned' ? 'stroke-current' : 'fill-current'
+                  "
+                />
+              </span>
+            </ListboxButton>
+            <transition
+              leave-active-class="transition ease-in duration-100"
+              leave-from-class="opacity-100"
+              leave-to-class="opacity-0"
+            >
+              <ListboxOptions
+                class="absolute right-0 left-auto z-20 mt-1 w-40 origin-top-right overflow-hidden rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-hidden dark:bg-grey-900"
+              >
+                <ListboxOption
+                  as="template"
+                  v-for="option in pinnedFilterOptions"
+                  :key="option.value"
+                  :value="option"
+                  v-slot="{ active, selected }"
+                >
+                  <li
+                    :class="[
+                      active ? 'text-white bg-indigo-500' : 'text-grey-900 dark:text-grey-100',
+                      'cursor-pointer select-none p-2 text-sm',
+                    ]"
+                  >
+                    <div class="flex justify-between items-center">
+                      <span :class="selected ? 'font-semibold' : 'font-normal'">
+                        {{ option.label }}
+                      </span>
+                      <CheckIcon
+                        v-if="selected"
+                        :class="active ? 'text-white' : 'text-indigo-500 dark:text-grey-100'"
+                        class="h-5 w-5"
+                        aria-hidden="true"
+                      />
+                    </div>
+                  </li>
+                </ListboxOption>
+              </ListboxOptions>
+            </transition>
+          </div>
+        </Listbox>
       </div>
       <div class="flex py-4 px-4 sm:px-6 lg:px-8">
         <div class="flex items-center">
@@ -120,12 +193,15 @@
             <div class="relative">
               <div>
                 <ListboxButton
-                  class="inline-flex items-center text-sm text-grey-700 hover:text-grey-900 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                  class="inline-flex items-center text-sm text-grey-700 hover:text-grey-900 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-grey-200 dark:hover:text-grey-300"
                 >
                   <span class="sr-only">Change sort by</span>
                   <ListboxLabel class="cursor-pointer">Sort By</ListboxLabel>
                   <p class="ml-1 font-medium">{{ currentSort.label }}</p>
-                  <ChevronDownIcon class="h-5 w-5 text-grey-700" aria-hidden="true" />
+                  <ChevronDownIcon
+                    class="h-5 w-5 text-grey-700 dark:text-grey-200"
+                    aria-hidden="true"
+                  />
                 </ListboxButton>
               </div>
 
@@ -135,7 +211,7 @@
                 leave-to-class="opacity-0"
               >
                 <ListboxOptions
-                  class="absolute right-0 z-20 mt-2 w-48 origin-top-right overflow-hidden rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                  class="absolute right-0 z-20 mt-2 w-48 origin-top-right overflow-hidden rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-hidden dark:bg-grey-900"
                 >
                   <ListboxOption
                     as="template"
@@ -146,7 +222,7 @@
                   >
                     <li
                       :class="[
-                        active ? 'text-white bg-indigo-500' : 'text-grey-900',
+                        active ? 'text-white bg-indigo-500' : 'text-grey-900 dark:text-grey-100',
                         'cursor-pointer select-none p-2 text-sm',
                       ]"
                     >
@@ -155,7 +231,10 @@
                           <p :class="selected ? 'font-semibold' : 'font-normal'">
                             {{ option.label }}
                           </p>
-                          <span v-if="selected" :class="active ? 'text-white' : 'text-indigo-500'">
+                          <span
+                            v-if="selected"
+                            :class="active ? 'text-white' : 'text-indigo-500 dark:text-grey-100'"
+                          >
                             <CheckIcon class="h-5 w-5" aria-hidden="true" />
                           </span>
                         </div>
@@ -187,12 +266,12 @@
         <div
           v-if="selectedRows.length > 0"
           id="bulk-actions"
-          class="horizontal-scroll absolute px-0.5 top-0 left-12 flex flex-nowrap w-full h-12 items-center space-x-3 bg-gradient-to-r from-white z-10 overflow-x-auto"
+          class="horizontal-scroll absolute px-0.5 top-0 left-12 flex flex-nowrap w-full h-12 items-center space-x-3 bg-gradient-to-r from-white dark:from-grey-900 z-10 overflow-x-auto"
           style="width: calc(100% - 3rem)"
         >
           <button
             type="button"
-            class="ml-1 inline-flex items-center rounded border border-grey-300 bg-white px-2.5 py-1.5 text-xs font-medium text-grey-700 shadow-sm hover:bg-grey-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
+            class="ml-1 inline-flex items-center rounded border border-grey-300 bg-white px-2.5 py-1.5 text-xs font-medium text-grey-700 shadow-sm hover:bg-grey-50 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30 dark:border-grey-600 dark:bg-grey-800 dark:text-grey-200 dark:hover:bg-grey-700"
             :disabled="disabledBulkActivate() || bulkActivateAliasLoading"
             @click="bulkActivateAlias()"
           >
@@ -200,7 +279,7 @@
           </button>
           <button
             type="button"
-            class="inline-flex items-center rounded border border-grey-300 bg-white px-2.5 py-1.5 text-xs font-medium text-grey-700 shadow-sm hover:bg-grey-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
+            class="inline-flex items-center rounded border border-grey-300 bg-white px-2.5 py-1.5 text-xs font-medium text-grey-700 shadow-sm hover:bg-grey-50 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30 dark:border-grey-600 dark:bg-grey-800 dark:text-grey-200 dark:hover:bg-grey-700"
             :disabled="disabledBulkDeactivate() || bulkDeactivateAliasLoading"
             @click="bulkDeactivateAlias()"
           >
@@ -208,7 +287,23 @@
           </button>
           <button
             type="button"
-            class="inline-flex items-center rounded border border-grey-300 bg-white px-2.5 py-1.5 text-xs font-medium text-grey-700 shadow-sm hover:bg-grey-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30 whitespace-nowrap"
+            class="inline-flex items-center rounded border border-grey-300 bg-white px-2.5 py-1.5 text-xs font-medium text-grey-700 shadow-sm hover:bg-grey-50 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30 dark:border-grey-600 dark:bg-grey-800 dark:text-grey-200 dark:hover:bg-grey-700"
+            :disabled="disabledBulkPin() || bulkPinAliasLoading"
+            @click="selectedRows.length === 1 ? pinAlias(selectedRows[0]) : bulkPinAlias()"
+          >
+            Pin <loader v-if="bulkPinAliasLoading" />
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center rounded border border-grey-300 bg-white px-2.5 py-1.5 text-xs font-medium text-grey-700 shadow-sm hover:bg-grey-50 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30 dark:border-grey-600 dark:bg-grey-800 dark:text-grey-200 dark:hover:bg-grey-700"
+            :disabled="disabledBulkUnpin() || bulkUnpinAliasLoading"
+            @click="selectedRows.length === 1 ? unpinAlias(selectedRows[0]) : bulkUnpinAlias()"
+          >
+            Unpin <loader v-if="bulkUnpinAliasLoading" />
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center rounded border border-grey-300 bg-white px-2.5 py-1.5 text-xs font-medium text-grey-700 shadow-sm hover:bg-grey-50 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30 dark:border-grey-600 dark:bg-grey-800 dark:text-grey-200 dark:hover:bg-grey-700 whitespace-nowrap"
             :disabled="bulkEditAliasRecipientsLoading"
             @click="
               selectedRows.length === 1
@@ -220,7 +315,7 @@
           </button>
           <button
             type="button"
-            class="inline-flex items-center rounded border border-grey-300 bg-white px-2.5 py-1.5 text-xs font-medium text-grey-700 shadow-sm hover:bg-grey-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
+            class="inline-flex items-center rounded border border-grey-300 bg-white px-2.5 py-1.5 text-xs font-medium text-grey-700 shadow-sm hover:bg-grey-50 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30 dark:border-grey-600 dark:bg-grey-800 dark:text-grey-200 dark:hover:bg-grey-700"
             :disabled="disabledBulkDelete()"
             @click="
               selectedAliasesToDelete.length === 1
@@ -232,7 +327,7 @@
           </button>
           <button
             type="button"
-            class="inline-flex items-center rounded border border-grey-300 bg-white px-2.5 py-1.5 text-xs font-medium text-grey-700 shadow-sm hover:bg-grey-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            class="inline-flex items-center rounded border border-grey-300 bg-white px-2.5 py-1.5 text-xs font-medium text-grey-700 shadow-sm hover:bg-grey-50 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30 dark:border-grey-600 dark:bg-grey-800 dark:text-grey-200 dark:hover:bg-grey-700"
             @click="
               selectedRowIds.length === 1
                 ? openForgetModal(selectedRows[0])
@@ -243,7 +338,7 @@
           </button>
           <button
             type="button"
-            class="inline-flex items-center rounded border border-grey-300 bg-white px-2.5 py-1.5 text-xs font-medium text-grey-700 shadow-sm hover:bg-grey-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
+            class="inline-flex items-center rounded border border-grey-300 bg-white px-2.5 py-1.5 text-xs font-medium text-grey-700 shadow-sm hover:bg-grey-50 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30 dark:border-grey-600 dark:bg-grey-800 dark:text-grey-200 dark:hover:bg-grey-700"
             :disabled="disabledBulkRestore()"
             @click="
               selectedAliasesToRestore.length === 1
@@ -253,12 +348,15 @@
           >
             Restore
           </button>
-          <span class="font-semibold text-indigo-800 hidden md:inline-block">{{
+          <span class="font-semibold text-indigo-800 hidden md:inline-block dark:text-indigo-400">{{
             selectedRows.length === 1
               ? `${selectedRows.length} alias`
               : `${selectedRows.length} aliases`
           }}</span>
         </div>
+        <p v-if="rows.length" class="mb-2 text-xs text-grey-500 dark:text-grey-300 md:hidden">
+          Swipe horizontally to view alias actions.
+        </p>
         <vue-good-table
           v-on:sort-change="debounceToolips"
           v-on:page-change="debounceToolips"
@@ -276,7 +374,7 @@
               <input
                 v-if="rows.length <= 25"
                 type="checkbox"
-                class="h-4 w-4 rounded border-grey-300 text-indigo-600 focus:ring-indigo-500 sm:left-6"
+                class="h-4 w-4 rounded border-grey-300 text-indigo-600 focus:ring-indigo-500 sm:left-6 dark:text-indigo-400 dark:bg-grey-950"
                 :checked="indeterminate || selectedRowIds.length === rows.length"
                 :indeterminate="indeterminate"
                 @change="selectedRowIds = $event.target.checked ? rows.map(r => r.id) : []"
@@ -284,14 +382,14 @@
               <div
                 v-else
                 type="checkbox"
-                class="h-4 w-4 rounded border-grey-300 bg-grey-100 text-indigo-600 focus:ring-indigo-500 sm:left-6 tooltip cursor-not-allowed"
+                class="h-4 w-4 rounded border-grey-300 bg-grey-100 border text-indigo-600 focus:ring-indigo-500 sm:left-6 tooltip cursor-not-allowed dark:bg-grey-800"
                 data-tippy-content="'Select All' is only available when the page size is 25"
               ></div>
             </span>
             <span v-else-if="props.column.label == 'Active'">
               {{ props.column.label }}
               <span
-                class="tooltip outline-none"
+                class="tooltip outline-hidden"
                 data-tippy-content="When an alias is deactivated, any messages sent to it will be silently discarded. The sender will not be notified of the unsuccessful delivery."
               >
                 <icon name="info" class="inline-block w-4 h-4 text-grey-300 fill-current" />
@@ -310,13 +408,13 @@
               <div
                 v-if="selectedRowIds.length >= 25 && !selectedRowIds.includes(props.row.id)"
                 type="checkbox"
-                class="h-4 w-4 rounded border-grey-300 bg-grey-100 text-indigo-600 focus:ring-indigo-500 sm:left-6 cursor-not-allowed"
+                class="h-4 w-4 rounded border-grey-300 bg-grey-100 text-indigo-600 focus:ring-indigo-500 sm:left-6 cursor-not-allowed dark:bg-grey-900"
                 title="You cannot select more than 25 aliases"
               ></div>
               <input
                 v-else
                 type="checkbox"
-                class="h-4 w-4 rounded border-grey-300 text-indigo-600 focus:ring-indigo-500 sm:left-6"
+                class="h-4 w-4 rounded border-grey-300 text-indigo-600 focus:ring-indigo-500 sm:left-6 dark:bg-grey-900"
                 title="Click to select'"
                 :value="props.row.id"
                 v-model="selectedRowIds"
@@ -325,7 +423,7 @@
             <span v-else-if="props.column.field == 'created_at'" class="flex items-center">
               <span
                 :class="`bg-${getAliasStatus(props.row).colour}-100`"
-                class="tooltip outline-none h-4 w-4 rounded-full flex items-center justify-center mr-2"
+                class="tooltip outline-hidden h-4 w-4 rounded-full flex items-center justify-center mr-2"
                 :data-tippy-content="getAliasStatus(props.row).status"
                 tabindex="-1"
               >
@@ -335,38 +433,48 @@
                 ></span>
               </span>
               <span
-                class="tooltip outline-none cursor-default text-sm whitespace-nowrap text-grey-500"
+                class="tooltip outline-hidden cursor-default text-sm whitespace-nowrap text-grey-500 dark:text-grey-300"
                 :data-tippy-content="$filters.formatDate(rows[props.row.originalIndex].created_at)"
                 >{{ $filters.timeAgo(props.row.created_at) }}
               </span>
             </span>
             <span v-else-if="props.column.field == 'email'" class="block">
-              <button
-                class="text-grey-400 tooltip outline-none"
-                data-tippy-content="Click to copy"
-                @click="clipboard(getAliasEmail(rows[props.row.originalIndex]))"
-              >
-                <span class="font-semibold text-indigo-800">{{
-                  $filters.truncate(getAliasLocalPart(props.row), 60)
-                }}</span
-                ><span
-                  v-if="getAliasLocalPart(props.row).length <= 60"
-                  class="font-semibold text-grey-500"
-                  >{{
-                    $filters.truncate(
-                      '@' + props.row.domain,
-                      60 - getAliasLocalPart(props.row).length,
-                    )
-                  }}</span
+              <div class="flex items-center">
+                <span
+                  v-if="props.row.pinned"
+                  class="mr-1 tooltip outline-hidden inline-flex items-center text-yellow-500 dark:text-yellow-400 cursor-default"
+                  data-tippy-content="Pinned"
+                  aria-hidden="true"
                 >
-              </button>
+                  <icon name="pin" class="inline-block w-4 h-4 fill-current" />
+                </span>
+                <button
+                  class="text-grey-400 tooltip outline-hidden text-left"
+                  data-tippy-content="Click to copy"
+                  @click="clipboard(getAliasEmail(rows[props.row.originalIndex]))"
+                >
+                  <span class="font-semibold text-indigo-800 dark:text-indigo-400">{{
+                    $filters.truncate(getAliasLocalPart(props.row), 60)
+                  }}</span
+                  ><span
+                    v-if="getAliasLocalPart(props.row).length <= 60"
+                    class="font-semibold text-grey-500 dark:text-grey-200"
+                    >{{
+                      $filters.truncate(
+                        '@' + props.row.domain,
+                        60 - getAliasLocalPart(props.row).length,
+                      )
+                    }}</span
+                  >
+                </button>
+              </div>
               <div v-if="aliasIdToEdit === props.row.id" class="flex items-center">
                 <input
                   @keyup.enter="editAliasDescription(rows[props.row.originalIndex])"
                   @keyup.esc="aliasIdToEdit = aliasDescriptionToEdit = ''"
                   v-model="aliasDescriptionToEdit"
                   type="text"
-                  class="grow text-sm appearance-none bg-grey-50 border text-grey-700 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 px-2 py-1"
+                  class="grow text-sm appearance-none bg-grey-50 border text-grey-700 dark:text-grey-300 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 px-2 py-1 dark:bg-white/5"
                   :class="
                     aliasDescriptionToEdit.length > 200 ? 'border-red-500' : 'border-transparent'
                   "
@@ -386,7 +494,7 @@
               </div>
               <div v-else-if="props.row.description" class="flex items-center">
                 <span
-                  class="inline-block text-grey-400 text-sm py-1 border border-transparent mr-2"
+                  class="inline-block text-grey-400 text-sm py-1 border border-transparent mr-2 dark:text-grey-300"
                 >
                   {{ $filters.truncate(props.row.description, 60) }}
                 </span>
@@ -415,19 +523,19 @@
             >
               <span
                 v-if="props.row.recipients.length && props.row.id !== recipientsAliasToEdit.id"
-                class="inline-block tooltip outline-none font-semibold text-indigo-800"
+                class="inline-block tooltip outline-hidden font-semibold text-indigo-800 dark:text-indigo-400"
                 :data-tippy-content="recipientsTooltip(props.row.recipients)"
               >
                 {{ props.row.recipients.length }}
               </span>
               <span
                 v-else-if="props.row.id === recipientsAliasToEdit.id"
-                class="inline-block outline-none font-semibold text-indigo-800"
+                class="inline-block outline-hidden font-semibold text-indigo-800 dark:text-indigo-400"
                 >{{ aliasRecipientsToEdit.length ? aliasRecipientsToEdit.length : '1' }}</span
               >
               <span
                 v-else-if="has(props.row.aliasable, 'default_recipient.email')"
-                class="py-1 px-2 text-xs bg-yellow-200 text-yellow-900 rounded-full tooltip outline-none cursor-default"
+                class="py-1 px-2 text-xs bg-yellow-200 text-yellow-900 rounded-full tooltip outline-hidden cursor-default"
                 :data-tippy-content="props.row.aliasable.default_recipient.email"
                 >{{
                   props.row.aliasable_type === 'App\\Models\\Domain' ? 'domain' : 'username'
@@ -435,7 +543,7 @@
               >
               <span
                 v-else
-                class="py-1 px-2 text-xs bg-yellow-200 text-yellow-900 rounded-full tooltip outline-none cursor-default"
+                class="py-1 px-2 text-xs bg-yellow-200 text-yellow-900 rounded-full tooltip outline-hidden cursor-default"
                 :data-tippy-content="$page.props.user.email"
                 >default</span
               >
@@ -445,11 +553,11 @@
             </span>
             <span
               v-else-if="props.column.field == 'emails_forwarded'"
-              class="font-semibold text-indigo-800"
+              class="font-semibold text-indigo-800 dark:text-indigo-400"
             >
               <span
                 v-if="props.row.last_forwarded"
-                class="tooltip outline-none cursor-default"
+                class="tooltip outline-hidden cursor-default"
                 :data-tippy-content="
                   $filters.timeAgo(props.row.last_forwarded) +
                   ' (' +
@@ -462,7 +570,7 @@
               <span class="text-grey-300 mx-1.5">/</span>
               <span
                 v-if="props.row.last_blocked"
-                class="tooltip outline-none cursor-default"
+                class="tooltip outline-hidden cursor-default"
                 :data-tippy-content="
                   $filters.timeAgo(props.row.last_blocked) +
                   ' (' +
@@ -475,11 +583,11 @@
             </span>
             <span
               v-else-if="props.column.field == 'emails_replied'"
-              class="font-semibold text-indigo-800"
+              class="font-semibold text-indigo-800 dark:text-indigo-400"
             >
               <span
                 v-if="props.row.last_replied"
-                class="tooltip outline-none cursor-default"
+                class="tooltip outline-hidden cursor-default"
                 :data-tippy-content="
                   $filters.timeAgo(props.row.last_replied) +
                   ' (' +
@@ -492,7 +600,7 @@
               <span class="text-grey-300 mx-1.5">/</span>
               <span
                 v-if="props.row.last_sent"
-                class="tooltip outline-none cursor-default"
+                class="tooltip outline-hidden cursor-default"
                 :data-tippy-content="
                   $filters.timeAgo(props.row.last_sent) +
                   ' (' +
@@ -510,17 +618,17 @@
                 @off="deactivateAlias(rows[props.row.originalIndex])"
               />
             </span>
-            <span v-else class="flex items-center justify-center outline-none" tabindex="-1">
+            <span v-else class="flex items-center justify-center outline-hidden" tabindex="-1">
               <Link
                 :href="route('aliases.edit', props.row.id)"
                 as="button"
                 type="button"
-                class="text-indigo-500 hover:text-indigo-800 font-medium"
+                class="text-indigo-500 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-500 font-medium"
                 >Edit<span class="sr-only">, {{ props.row.email }}</span></Link
               >
               <button
                 @click="openSendFromModal(props.row)"
-                class="group flex items-center text-indigo-500 hover:text-indigo-800 font-medium ml-4 tooltip"
+                class="group flex items-center text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-500 hover:text-indigo-800 font-medium ml-4 tooltip"
                 data-tippy-content="Send an email from this alias"
               >
                 Send
@@ -530,151 +638,13 @@
           </template>
         </vue-good-table>
 
-        <div
-          class="mt-4 rounded-lg shadow flex items-center justify-between bg-white px-4 py-3 sm:px-6 overflow-x-auto horizontal-scroll"
-        >
-          <div class="flex flex-1 justify-between items-center md:hidden gap-x-3">
-            <Link
-              v-if="$page.props.initialRows.prev_page_url"
-              :href="$page.props.initialRows.prev_page_url"
-              as="button"
-              class="relative inline-flex items-center rounded-md border border-grey-300 bg-white px-4 py-2 text-sm font-medium text-grey-700 hover:bg-grey-50"
-            >
-              Previous
-            </Link>
-            <span
-              v-else
-              class="relative inline-flex h-min items-center rounded-md border border-grey-300 px-4 py-2 text-sm font-medium text-grey-700 bg-grey-100"
-              >Previous</span
-            >
-            <div class="flex flex-col items-center justify-center gap-y-2">
-              <p class="text-sm text-grey-700 text-center">
-                Showing
-                {{ ' ' }}
-                <span class="font-medium">{{ $page.props.initialRows.from.toLocaleString() }}</span>
-                {{ ' ' }}
-                to
-                {{ ' ' }}
-                <span class="font-medium">{{ $page.props.initialRows.to.toLocaleString() }}</span>
-                {{ ' ' }}
-                of
-                {{ ' ' }}
-                <span class="font-medium">{{
-                  $page.props.initialRows.total.toLocaleString()
-                }}</span>
-                {{ ' ' }}
-                {{ $page.props.initialRows.total === 1 ? 'result' : 'results' }}
-              </p>
-              <select
-                v-model.number="pageSize"
-                @change="updatePageSize"
-                :disabled="updatePageSizeLoading"
-                class="relative rounded border-0 bg-transparent py-1 pr-8 text-grey-900 text-sm ring-1 ring-inset focus:z-10 focus:ring-2 focus:ring-inset ring-grey-300 focus:ring-indigo-600 disabled:cursor-not-allowed"
-              >
-                <option v-for="size in pageSizeOptions" :value="size">{{ size }}</option>
-              </select>
-            </div>
-            <Link
-              v-if="$page.props.initialRows.next_page_url"
-              :href="$page.props.initialRows.next_page_url"
-              as="button"
-              class="relative inline-flex h-min items-center rounded-md border border-grey-300 bg-white px-4 py-2 text-sm font-medium text-grey-700 hover:bg-grey-50"
-            >
-              Next
-            </Link>
-            <span
-              v-else
-              class="relative inline-flex items-center rounded-md border border-grey-300 px-4 py-2 text-sm font-medium text-grey-700 bg-grey-100"
-              >Next</span
-            >
-          </div>
-          <div class="hidden md:flex md:flex-1 md:items-center md:justify-between md:gap-x-2">
-            <div class="flex items-center gap-x-2">
-              <p class="text-sm text-grey-700">
-                Showing
-                {{ ' ' }}
-                <span class="font-medium">{{ $page.props.initialRows.from.toLocaleString() }}</span>
-                {{ ' ' }}
-                to
-                {{ ' ' }}
-                <span class="font-medium">{{ $page.props.initialRows.to.toLocaleString() }}</span>
-                {{ ' ' }}
-                of
-                {{ ' ' }}
-                <span class="font-medium">{{
-                  $page.props.initialRows.total.toLocaleString()
-                }}</span>
-                {{ ' ' }}
-                {{ $page.props.initialRows.total === 1 ? 'result' : 'results' }}
-              </p>
-              <select
-                v-model.number="pageSize"
-                @change="updatePageSize"
-                :disabled="updatePageSizeLoading"
-                class="relative rounded border-0 bg-transparent py-1 pr-8 text-grey-900 text-sm ring-1 ring-inset focus:z-10 focus:ring-2 focus:ring-inset ring-grey-300 focus:ring-indigo-600 disabled:cursor-not-allowed"
-              >
-                <option v-for="size in pageSizeOptions" :value="size">{{ size }}</option>
-              </select>
-            </div>
-
-            <nav
-              class="isolate inline-flex -space-x-px rounded-md shadow-sm break-"
-              aria-label="Pagination"
-            >
-              <Link
-                v-if="$page.props.initialRows.prev_page_url"
-                :href="$page.props.initialRows.prev_page_url"
-                class="relative inline-flex items-center rounded-l-md border border-grey-300 bg-white px-2 py-2 text-sm font-medium text-grey-500 hover:bg-grey-50 focus:z-20"
-              >
-                <span class="sr-only">Previous</span>
-                <ChevronLeftIcon class="h-5 w-5" aria-hidden="true" />
-              </Link>
-              <span
-                v-else
-                class="disabled cursor-not-allowed relative inline-flex items-center rounded-l-md border border-grey-300 bg-white px-2 py-2 text-sm font-medium text-grey-500 hover:bg-grey-50 focus:z-20"
-              >
-                <span class="sr-only">Previous</span>
-                <ChevronLeftIcon class="h-5 w-5" aria-hidden="true" />
-              </span>
-
-              <div v-for="link in links" v-bind:key="link.label">
-                <Link
-                  v-if="link.url"
-                  :href="link.url"
-                  aria-current="page"
-                  class="relative inline-flex items-center border z-10 px-4 py-2 text-sm font-medium focus:z-20"
-                  :class="
-                    link.active
-                      ? 'border-indigo-500 bg-indigo-50 text-indigo-600'
-                      : 'border-grey-300 bg-white text-grey-500 hover:bg-grey-50'
-                  "
-                  >{{ link.label }}</Link
-                >
-                <span
-                  v-else
-                  class="relative inline-flex items-center border border-grey-300 bg-white px-4 py-2 text-sm font-medium text-grey-700"
-                  >...</span
-                >
-              </div>
-
-              <Link
-                v-if="$page.props.initialRows.next_page_url"
-                :href="$page.props.initialRows.next_page_url"
-                class="relative inline-flex items-center rounded-r-md border border-grey-300 bg-white px-2 py-2 text-sm font-medium text-grey-500 hover:bg-grey-50 focus:z-20"
-              >
-                <span class="sr-only">Next</span>
-                <ChevronRightIcon class="h-5 w-5" aria-hidden="true" />
-              </Link>
-              <span
-                v-else
-                class="disabled cursor-not-allowed relative inline-flex items-center rounded-r-md border border-grey-300 bg-white px-2 py-2 text-sm font-medium text-grey-500 hover:bg-grey-50 focus:z-20"
-              >
-                <span class="sr-only">Next</span>
-                <ChevronRightIcon class="h-5 w-5" aria-hidden="true" />
-              </span>
-            </nav>
-          </div>
-        </div>
+        <PaginationControls
+          :pagination="$page.props.initialRows"
+          v-model:page-size="pageSize"
+          :page-size-options="pageSizeOptions"
+          :page-size-loading="updatePageSizeLoading"
+          @page-size-change="updatePageSize"
+        />
       </div>
     </div>
 
@@ -682,67 +652,71 @@
       v-else-if="Object.keys(route().params).length || currentAliasStatus !== 'active_inactive'"
       class="text-center"
     >
-      <AtSymbolIcon class="mx-auto h-16 w-16 text-grey-400" />
-      <h3 class="mt-2 text-lg font-medium text-grey-900">
+      <AtSymbolIcon class="mx-auto h-16 w-16 text-grey-400 dark:text-grey-200" />
+      <h3 class="mt-2 text-lg font-medium text-grey-900 dark:text-white">
         No Aliases found for that search or with those filters
       </h3>
-      <p class="mt-1 text-md text-grey-500">
+      <p class="mt-1 text-md text-grey-500 dark:text-grey-200">
         Try entering a different search term or changing the filters.
       </p>
       <div class="mt-6">
         <Link
           :href="route('aliases.index')"
           type="button"
-          class="inline-flex items-center rounded-md border border-transparent bg-cyan-400 hover:bg-cyan-300 text-cyan-900 px-4 py-2 text-sm font-medium shadow-sm focus:outline-none"
+          class="inline-flex items-center rounded-md border border-transparent bg-cyan-400 hover:bg-cyan-300 text-cyan-900 px-4 py-2 text-sm font-medium shadow-sm focus:outline-hidden"
         >
           View All Aliases
         </Link>
       </div>
     </div>
 
-    <div v-else class="text-center">
-      <AtSymbolIcon class="mx-auto h-16 w-16 text-grey-400" />
-      <h3 class="mt-2 text-lg font-medium text-grey-900">
+    <div v-else class="text-center text-grey-700 dark:text-grey-200">
+      <AtSymbolIcon class="mx-auto h-16 w-16 text-grey-400 dark:text-grey-200" />
+      <h3 class="mt-2 text-lg font-medium text-grey-900 dark:text-white">
         It doesn't look like you have any aliases yet!
       </h3>
       <div v-if="subdomain">
-        <p class="mb-4 text-md text-grey-700">
+        <p class="mb-4 text-md">
           There {{ domain ? 'are two ways' : 'is one way' }} to create new aliases.
         </p>
-        <h3 class="mb-2 text-lg text-indigo-800 font-semibold">Create aliases on the fly</h3>
-        <p class="mb-2 text-grey-700">
+        <h3 class="mb-2 text-lg text-indigo-800 dark:text-indigo-400 font-semibold">
+          Create aliases on the fly
+        </h3>
+        <p class="mb-2">
           To create aliases on the fly all you have to do is make up any new alias and give that out
           instead of your real email address.
         </p>
-        <p class="mb-2 text-grey-700">
+        <p class="mb-2">
           Let's say you're signing up to <b>example.com</b> you could enter
           <b>example@{{ subdomain }}</b> as your email address.
         </p>
-        <p class="mb-2 text-grey-700">
+        <p class="mb-2">
           The alias will show up here automatically as soon as it has forwarded its first email.
         </p>
-        <p class="mb-2 text-grey-700">
+        <p class="mb-2">
           If you start receiving spam to the alias you can simply deactivate it or delete it all
           together!
         </p>
-        <p class="mb-4 text-grey-700">
+        <p class="mb-4">
           Try it out now by sending an email to <b>first@{{ subdomain }}</b> and then refresh this
           page.
         </p>
       </div>
       <div v-if="domain">
-        <p v-if="!subdomain" class="mb-4 text-md text-grey-700">
+        <p v-if="!subdomain" class="mb-4 text-md text-grey-700 dark:text-grey-200">
           There is one way to create new aliases.
         </p>
-        <h3 class="mb-2 text-lg text-indigo-800 font-semibold">Create a unique random alias</h3>
-        <p class="mb-2 text-grey-700">
+        <h3 class="mb-2 text-lg text-indigo-800 dark:text-indigo-400 font-semibold">
+          Create a unique random alias
+        </h3>
+        <p class="mb-2 text-grey-700 dark:text-grey-200">
           You can click the button above to create a random alias that will look something like
           this:
         </p>
-        <p class="mb-2 text-grey-700">
+        <p class="mb-2 text-grey-700 dark:text-grey-200">
           <b>x481n904@{{ domain }}</b>
         </p>
-        <p clas="text-grey-700">
+        <p class="text-grey-700 dark:text-grey-200">
           This is useful if you do not wish to include your username in the email as a potential
           link between aliases.
         </p>
@@ -751,7 +725,7 @@
         <button
           @click="createAliasModalOpen = true"
           type="button"
-          class="inline-flex items-center rounded-md border border-transparent bg-cyan-400 hover:bg-cyan-300 text-cyan-900 px-4 py-2 text-sm font-medium shadow-sm focus:outline-none"
+          class="inline-flex items-center rounded-md border border-transparent bg-cyan-400 hover:bg-cyan-300 text-cyan-900 px-4 py-2 text-sm font-medium shadow-sm focus:outline-hidden"
         >
           <PlusIcon class="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
           Create Your First Alias
@@ -762,21 +736,29 @@
     <Modal :open="createAliasModalOpen" @close="createAliasModalOpen = false">
       <template v-slot:title> Create new alias </template>
       <template v-slot:content>
-        <p v-if="subdomain" class="mt-4 text-grey-700">
+        <p v-if="subdomain" class="mt-4 text-grey-700 dark:text-grey-200">
           Other aliases e.g. alias@{{ subdomain }} can also be created automatically when they
           receive their first email.
         </p>
-        <label for="alias_domain" class="block font-medium leading-6 text-grey-600 text-sm my-2">
+        <label
+          for="alias_domain"
+          class="block font-medium leading-6 text-grey-600 dark:text-white text-sm my-2"
+        >
           Alias Domain
         </label>
         <div class="block relative w-full mb-4">
           <select
             v-model="createAliasDomain"
             id="alias_domain"
-            class="block w-full rounded border-0 bg-transparent py-2 text-grey-900 ring-1 ring-inset focus:z-10 focus:ring-2 focus:ring-inset sm:text-base sm:leading-6"
+            class="block w-full rounded border-0 bg-transparent py-2 text-grey-900 dark:text-white dark:bg-white/5 ring-1 ring-inset focus:z-10 focus:ring-2 focus:ring-inset sm:text-base sm:leading-6"
             required
           >
-            <option v-for="domainOption in domainOptions" :key="domainOption" :value="domainOption">
+            <option
+              v-for="domainOption in domainOptions"
+              :key="domainOption"
+              :value="domainOption"
+              class="dark:bg-grey-900"
+            >
               {{ domainOption }}
             </option>
           </select>
@@ -784,7 +766,7 @@
 
         <label
           for="alias_format"
-          class="block font-medium leading-6 text-grey-600 text-sm mt-4 mb-2"
+          class="block font-medium leading-6 text-grey-600 dark:text-white text-sm mt-4 mb-2"
         >
           Alias Format
         </label>
@@ -792,13 +774,14 @@
           <select
             v-model="createAliasFormat"
             id="alias_format"
-            class="block w-full rounded border-0 bg-transparent py-2 text-grey-900 ring-1 ring-inset focus:z-10 focus:ring-2 focus:ring-inset sm:text-base sm:leading-6"
+            class="block w-full rounded border-0 bg-transparent py-2 text-grey-900 dark:text-white dark:bg-white/5 ring-1 ring-inset focus:z-10 focus:ring-2 focus:ring-inset sm:text-base sm:leading-6"
             required
           >
             <option
               v-for="formatOption in aliasFormatOptions"
               :key="formatOption.value"
               :value="formatOption.value"
+              class="dark:bg-grey-900"
             >
               {{ formatOption.label }}
             </option>
@@ -808,7 +791,7 @@
         <div v-if="createAliasFormat === 'custom'">
           <label
             for="alias_local_part"
-            class="block font-medium leading-6 text-grey-600 text-sm my-2"
+            class="block font-medium leading-6 text-grey-600 dark:text-white text-sm my-2"
           >
             Alias Local Part
           </label>
@@ -819,7 +802,7 @@
             v-model="createAliasLocalPart"
             id="alias_local_part"
             type="text"
-            class="block w-full rounded-md border-0 py-2 pr-10 ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-base sm:leading-6"
+            class="block w-full rounded-md border-0 py-2 pr-10 ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-base sm:leading-6 dark:text-white dark:bg-white/5"
             :class="errors.createAliasLocalPart ? 'border-red-500' : ''"
             placeholder="Enter local part..."
             autofocus
@@ -828,7 +811,7 @@
 
         <label
           for="alias_description"
-          class="block font-medium leading-6 text-grey-600 text-sm my-2"
+          class="block font-medium leading-6 text-grey-600 dark:text-white text-sm my-2"
         >
           Description
         </label>
@@ -839,7 +822,7 @@
           v-model="createAliasDescription"
           id="alias_description"
           type="text"
-          class="block w-full rounded-md border-0 py-2 pr-10 ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-base sm:leading-6"
+          class="block w-full rounded-md border-0 py-2 pr-10 ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-base sm:leading-6 dark:text-white dark:bg-white/5"
           :class="errors.createAliasDescription ? 'ring-red-500' : ''"
           placeholder="Enter description (optional)..."
           autofocus
@@ -847,7 +830,7 @@
 
         <label
           for="alias_recipient_ids"
-          class="block font-medium leading-6 text-grey-600 text-sm my-2"
+          class="block font-medium leading-6 text-grey-600 dark:text-white text-sm my-2"
         >
           Recipients
         </label>
@@ -883,7 +866,7 @@
           </button>
           <button
             @click="createAliasModalOpen = false"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Cancel
           </button>
@@ -894,7 +877,7 @@
     <Modal :open="editAliasRecipientsModalOpen" @close="closeAliasRecipientsModal">
       <template v-slot:title> Update Alias Recipients </template>
       <template v-slot:content>
-        <p class="my-4 text-grey-700">
+        <p class="my-4 text-grey-700 dark:text-grey-200">
           Select the recipients for this alias. You can choose multiple recipients. Leave it empty
           if you would like to use the default recipient.
         </p>
@@ -926,7 +909,7 @@
           </button>
           <button
             @click="closeAliasRecipientsModal()"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Cancel
           </button>
@@ -937,7 +920,7 @@
     <Modal :open="bulkEditAliasRecipientsModalOpen" @close="closeBulkAliasRecipientsModal()">
       <template v-slot:title> Update Recipients for Aliases </template>
       <template v-slot:content>
-        <p class="my-4 text-grey-700">
+        <p class="my-4 text-grey-700 dark:text-grey-200">
           Select the recipients for these <b>{{ selectedRowIds.length }}</b> aliases. You can choose
           multiple recipients. Leave it empty if you would like to use the default recipient.
         </p>
@@ -969,7 +952,7 @@
           </button>
           <button
             @click="closeBulkAliasRecipientsModal()"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Cancel
           </button>
@@ -980,7 +963,7 @@
     <Modal :open="restoreAliasModalOpen" @close="closeRestoreModal">
       <template v-slot:title> Restore alias </template>
       <template v-slot:content>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           Are you sure you want to restore <b class="break-words">{{ aliasToRestore.email }}</b
           >? Once restored <b class="break-words">{{ aliasToRestore.email }}</b> will be
           <b>able to forward emails again</b>.
@@ -997,7 +980,7 @@
           </button>
           <button
             @click="closeRestoreModal"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Cancel
           </button>
@@ -1008,7 +991,7 @@
     <Modal :open="bulkRestoreAliasModalOpen" @close="bulkRestoreAliasModalOpen = false">
       <template v-slot:title> Restore aliases </template>
       <template v-slot:content>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           Are you sure you want to restore these
           <b>{{ selectedAliasesToRestore.length }}</b> aliases? Once restored they will be
           <b>able to forward emails again</b>.
@@ -1025,7 +1008,7 @@
           </button>
           <button
             @click="bulkRestoreAliasModalOpen = false"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Cancel
           </button>
@@ -1036,7 +1019,7 @@
     <Modal :open="deleteAliasModalOpen" @close="closeDeleteModal">
       <template v-slot:title> Delete alias </template>
       <template v-slot:content>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           Are you sure you want to delete <b class="break-words">{{ aliasToDelete.email }}</b
           >? You can restore it if you later change your mind. Once deleted,
           <b class="break-words">{{ aliasToDelete.email }}</b> will
@@ -1054,7 +1037,7 @@
           </button>
           <button
             @click="closeDeleteModal"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Cancel
           </button>
@@ -1065,7 +1048,7 @@
     <Modal :open="bulkDeleteAliasModalOpen" @close="bulkDeleteAliasModalOpen = false">
       <template v-slot:title> Delete aliases </template>
       <template v-slot:content>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           Are you sure you want to delete these
           <b>{{ selectedAliasesToDelete.length }}</b> aliases? You can restore them if you later
           change your mind. Once deleted, these aliases will <b>reject any emails sent to them</b>.
@@ -1082,7 +1065,7 @@
           </button>
           <button
             @click="bulkDeleteAliasModalOpen = false"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Cancel
           </button>
@@ -1093,16 +1076,19 @@
     <Modal :open="forgetAliasModalOpen" @close="closeForgetModal">
       <template v-slot:title> Forget alias </template>
       <template v-slot:content>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           Are you sure you want to forget <b class="break-words">{{ aliasToForget.email }}</b
           >? Forgetting an alias will disassociate it from your account.
         </p>
-        <p v-if="sharedDomains.includes(aliasToForget.domain)" class="mt-4 text-grey-700">
+        <p
+          v-if="sharedDomains.includes(aliasToForget.domain)"
+          class="mt-4 text-grey-700 dark:text-grey-200"
+        >
           <b>Note:</b> This alias uses a shared domain so it can
           <b>never be restored or used again</b> so make sure you are certain. Once forgotten,
           <b class="break-words">{{ aliasToForget.email }}</b> will reject any emails sent to it.
         </p>
-        <p v-else class="mt-4 text-grey-700">
+        <p v-else class="mt-4 text-grey-700 dark:text-grey-200">
           <b>Note:</b> This is a standard alias so it
           <b>can be created again in the future</b> since it will be as if it never existed in the
           database. Once forgotten, if someone sends an email to this alias and you have
@@ -1129,7 +1115,7 @@
           </button>
           <button
             @click="closeForgetModal"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Cancel
           </button>
@@ -1140,12 +1126,12 @@
     <Modal :open="bulkForgetAliasModalOpen" @close="bulkForgetAliasModalOpen = false">
       <template v-slot:title> Forget aliases </template>
       <template v-slot:content>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           Are you sure you want to forget these
           <b>{{ selectedRowIds.length }}</b> aliases? Forgetting these aliases will disassociate
           them from your account.
         </p>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           <b>Note:</b> If the alias uses a shared domain then it can <b>never be restored</b> or
           used again so make sure you are certain. If it is a standard alias then it can be created
           again since it will be as if it never existed.
@@ -1162,7 +1148,7 @@
           </button>
           <button
             @click="bulkForgetAliasModalOpen = false"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Cancel
           </button>
@@ -1173,27 +1159,30 @@
     <Modal :open="sendFromAliasModalOpen" @close="closeSendFromModal">
       <template v-slot:title> Send from alias </template>
       <template v-slot:content>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           Use this to automatically create the correct address to send an email to in order to send
           an <b>email from this alias</b>.
         </p>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           To send from an alias you must send the email from a <b>verified recipient</b> on your
           account.
         </p>
-        <label for="send_from_alias" class="block font-medium leading-6 text-grey-600 text-sm my-2">
+        <label
+          for="send_from_alias"
+          class="block font-medium leading-6 text-grey-600 dark:text-white text-sm my-2"
+        >
           Alias to send from
         </label>
         <input
           v-model="aliasToSendFrom.email"
           id="send_from_alias"
           type="text"
-          class="block w-full rounded-md border-0 py-2 pr-10 ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-base sm:leading-6 bg-grey-50"
+          class="block w-full rounded-md border-0 py-2 pr-10 ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-base sm:leading-6 bg-grey-50 dark:bg-white/5 dark:text-white"
           disabled
         />
         <label
           for="send_from_alias_destination"
-          class="block font-medium leading-6 text-grey-600 text-sm my-2"
+          class="block font-medium leading-6 text-grey-600 dark:text-white text-sm my-2"
         >
           To email destination
         </label>
@@ -1204,13 +1193,16 @@
           v-model="sendFromAliasDestination"
           id="send_from_alias_destination"
           type="text"
-          class="block w-full rounded-md border-0 py-2 pr-10 ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-base sm:leading-6"
+          class="block w-full rounded-md border-0 py-2 pr-10 ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-base sm:leading-6 dark:bg-white/5 dark:text-white"
           :class="errors.sendFromAliasDestination ? 'ring-red-500' : ''"
           placeholder="Enter email..."
           autofocus
         />
         <div v-if="sendFromAliasEmailToSendTo">
-          <p for="alias_domain" class="block font-medium leading-6 text-grey-600 text-sm my-2">
+          <p
+            for="alias_domain"
+            class="block font-medium leading-6 text-grey-600 dark:text-white text-sm my-2"
+          >
             Send your message to this email
           </p>
           <div
@@ -1271,7 +1263,7 @@
           </button>
           <button
             @click="closeSendFromModal"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Close
           </button>
@@ -1281,13 +1273,13 @@
     <Modal :open="newAliasModalOpen" @close="newAliasModalOpen = false">
       <template v-slot:title> Your New Alias is: </template>
       <template v-slot:content>
-        <p class="my-8 text-grey-700">
+        <p class="my-8 text-grey-700 dark:text-grey-200">
           <button
-            class="text-grey-400 tooltip outline-none"
+            class="text-grey-400 tooltip outline-hidden"
             data-tippy-content="Click to copy"
             @click="clipboard(getNewAliasEmail())"
           >
-            <span class="font-semibold text-indigo-800">{{
+            <span class="font-semibold text-indigo-800 dark:text-indigo-400">{{
               newAliasExtension ? `${newAliasLocalPart}+${newAliasExtension}` : newAliasLocalPart
             }}</span
             ><span class="font-semibold text-grey-500">@{{ newAliasDomain }}</span>
@@ -1303,7 +1295,7 @@
           </button>
           <button
             @click="newAliasModalOpen = false"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Close
           </button>
@@ -1313,16 +1305,18 @@
     <Modal :open="moreInfoOpen" @close="moreInfoOpen = false">
       <template v-slot:title> More information </template>
       <template v-slot:content>
-        <p class="mt-4 text-md text-grey-700">Aliases come under two different categories.</p>
+        <p class="mt-4 text-md text-grey-700 dark:text-grey-200">
+          Aliases come under two different categories.
+        </p>
 
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           <b>Standard Aliases</b> - Standard aliases use a domain that is unique only to you, all
           aliases for your custom domains are classed as standard aliases. Standard aliases can be
           created automatically when they receive their first email (if catch-all is enabled for the
           domain). If you signed up with a username of johndoe and gave out the following alias -
           hello@johndoe.anonaddy.com then this would be a standard alias.
         </p>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           <b>Shared Domain Aliases</b> - A shared domain alias is any alias that has a domain name
           that is also shared with other users. Aliases with shared domain names must be
           pre-generated and cannot be created on-the-fly like standard aliases.
@@ -1331,7 +1325,7 @@
         <div class="mt-6 flex flex-col sm:flex-row">
           <button
             @click="moreInfoOpen = false"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Close
           </button>
@@ -1346,6 +1340,7 @@ import { ref, watch, computed, onMounted } from 'vue'
 import { router, Head, Link } from '@inertiajs/vue3'
 import Modal from '../../Components/Modal.vue'
 import Toggle from '../../Components/Toggle.vue'
+import PaginationControls from '../../Components/PaginationControls.vue'
 import { roundArrow } from 'tippy.js'
 import tippy from 'tippy.js'
 import { VueGoodTable } from 'vue-good-table-next'
@@ -1365,13 +1360,7 @@ import {
   BarsArrowUpIcon,
   EnvelopeIcon,
 } from '@heroicons/vue/24/outline'
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ChevronDownIcon,
-  CheckIcon,
-  PlusIcon,
-} from '@heroicons/vue/20/solid'
+import { ChevronDownIcon, CheckIcon, PlusIcon } from '@heroicons/vue/20/solid'
 
 const props = defineProps({
   initialRows: {
@@ -1422,6 +1411,10 @@ const props = defineProps({
     type: Array,
     required: true,
   },
+  pinnedFilter: {
+    type: String,
+    default: null,
+  },
 })
 
 const rows = ref(props.initialRows.data)
@@ -1441,8 +1434,6 @@ const selectedAliasesToDelete = computed(() =>
 const selectedAliasesToRestore = computed(() =>
   _.filter(selectedRows.value, row => row.deleted_at !== null),
 )
-
-const links = ref(props.initialRows.links.slice(1, -1))
 
 const aliasIdToEdit = ref('')
 const aliasDescriptionToEdit = ref('')
@@ -1481,6 +1472,8 @@ const tippyInstance = ref(null)
 const errors = ref({})
 const bulkActivateAliasLoading = ref(false)
 const bulkDeactivateAliasLoading = ref(false)
+const bulkPinAliasLoading = ref(false)
+const bulkUnpinAliasLoading = ref(false)
 const bulkEditAliasRecipientsLoading = ref(false)
 const bulkEditAliasRecipientsModalOpen = ref(false)
 const bulkDeleteAliasLoading = ref(false)
@@ -1539,6 +1532,17 @@ const displayOptions = [
 ]
 
 const showAliasStatus = ref(_.find(displayOptions, ['value', props.currentAliasStatus]))
+
+const pinnedFilterOptions = [
+  { value: 'all', label: 'All' },
+  { value: 'pinned', label: 'Pinned' },
+  { value: 'unpinned', label: 'Unpinned' },
+]
+const getPinnedFilterOption = pinnedFilter => {
+  const value = pinnedFilter == null ? 'all' : pinnedFilter === 'true' ? 'pinned' : 'unpinned'
+  return _.find(pinnedFilterOptions, ['value', value]) ?? pinnedFilterOptions[0]
+}
+const selectedPinnedFilter = ref(getPinnedFilterOption(props.pinnedFilter))
 
 const sortOptions = [
   {
@@ -1618,6 +1622,18 @@ const aliasFormatOptions = [
     label: 'Random Words',
   },
   {
+    value: 'random_male_name',
+    label: 'Random Male Name',
+  },
+  {
+    value: 'random_female_name',
+    label: 'Random Female Name',
+  },
+  {
+    value: 'random_noun',
+    label: 'Random Noun',
+  },
+  {
     value: 'custom',
     label: 'Custom',
   },
@@ -1669,7 +1685,14 @@ watch(
     let params = Object.assign(route().params, status.value.params)
 
     router.visit(route('aliases.index', _.omit(params, status.value.omit)), {
-      only: ['initialRows', 'search', 'sort', 'sortDirection', 'currentAliasStatus'],
+      only: [
+        'initialRows',
+        'search',
+        'sort',
+        'sortDirection',
+        'currentAliasStatus',
+        'pinnedFilter',
+      ],
     })
   },
   { deep: true },
@@ -1683,8 +1706,40 @@ watch(
     })
 
     router.visit(route('aliases.index', _.omit(params, ['page'])), {
-      only: ['initialRows', 'search', 'sort', 'sortDirection', 'currentAliasStatus'],
+      only: [
+        'initialRows',
+        'search',
+        'sort',
+        'sortDirection',
+        'currentAliasStatus',
+        'pinnedFilter',
+      ],
     })
+  },
+  { deep: true },
+)
+
+const applyPinnedFilter = value => {
+  const params = { ...route().params }
+  params.pinned = value === 'all' ? 'all' : value === 'pinned' ? 'true' : 'false'
+  router.visit(route('aliases.index', params), {
+    only: ['initialRows', 'search', 'sort', 'sortDirection', 'currentAliasStatus', 'pinnedFilter'],
+  })
+}
+watch(
+  () => props.pinnedFilter,
+  val => {
+    selectedPinnedFilter.value = getPinnedFilterOption(val)
+  },
+)
+watch(
+  selectedPinnedFilter,
+  (newOpt, oldOpt) => {
+    if (!oldOpt || newOpt.value === oldOpt.value) return
+    const currentValue =
+      props.pinnedFilter == null ? 'all' : props.pinnedFilter === 'true' ? 'pinned' : 'unpinned'
+    if (newOpt.value === currentValue) return
+    applyPinnedFilter(newOpt.value)
   },
   { deep: true },
 )
@@ -1724,7 +1779,14 @@ const createNewAlias = () => {
     .then(({ data }) => {
       // Show active/inactive
       router.reload({
-        only: ['initialRows', 'search', 'currentAliasStatus', 'sort', 'sortDirection'],
+        only: [
+          'initialRows',
+          'search',
+          'currentAliasStatus',
+          'sort',
+          'sortDirection',
+          'pinnedFilter',
+        ],
         onSuccess: page => {
           rows.value = page.props.initialRows.data
           createAliasLoading.value = false
@@ -1973,6 +2035,156 @@ const bulkDeactivateAlias = () => {
     })
 }
 
+const pinAlias = alias => {
+  bulkPinAliasLoading.value = true
+
+  axios
+    .post('/api/v1/pinned-aliases', JSON.stringify({ id: alias.id }), {
+      headers: { 'Content-Type': 'application/json' },
+    })
+    .then(() => {
+      router.reload({
+        only: [
+          'initialRows',
+          'search',
+          'currentAliasStatus',
+          'sort',
+          'sortDirection',
+          'pinnedFilter',
+        ],
+        onSuccess: page => {
+          bulkPinAliasLoading.value = false
+          selectedRowIds.value = []
+          rows.value = props.initialRows.data
+          debounceToolips()
+          successMessage('Alias pinned')
+        },
+      })
+    })
+    .catch(error => {
+      bulkPinAliasLoading.value = false
+      if (error.response !== undefined) {
+        errorMessage(error.response.data)
+      } else {
+        errorMessage()
+      }
+    })
+}
+
+const bulkPinAlias = () => {
+  bulkPinAliasLoading.value = true
+  let selectedAliasesToPin = _.filter(selectedRows.value, r => !r.pinned)
+
+  axios
+    .post(
+      '/api/v1/aliases/pin/bulk',
+      JSON.stringify({ ids: selectedAliasesToPin.map(a => a.id) }),
+      { headers: { 'Content-Type': 'application/json' } },
+    )
+    .then(response => {
+      router.reload({
+        only: [
+          'initialRows',
+          'search',
+          'currentAliasStatus',
+          'sort',
+          'sortDirection',
+          'pinnedFilter',
+        ],
+        onSuccess: page => {
+          bulkPinAliasLoading.value = false
+          selectedRowIds.value = []
+          rows.value = props.initialRows.data
+          debounceToolips()
+          successMessage(response.data.message)
+        },
+      })
+    })
+    .catch(error => {
+      bulkPinAliasLoading.value = false
+      if (error.response?.status === 429) {
+        errorMessage('Too many bulk requests, please wait a little while before trying again')
+      } else if (error.response?.data?.message !== undefined) {
+        errorMessage(error.response.data.message)
+      } else {
+        errorMessage()
+      }
+    })
+}
+
+const unpinAlias = alias => {
+  bulkUnpinAliasLoading.value = true
+
+  axios
+    .delete(`/api/v1/pinned-aliases/${alias.id}`)
+    .then(() => {
+      router.reload({
+        only: [
+          'initialRows',
+          'search',
+          'currentAliasStatus',
+          'sort',
+          'sortDirection',
+          'pinnedFilter',
+        ],
+        onSuccess: page => {
+          bulkUnpinAliasLoading.value = false
+          selectedRowIds.value = []
+          rows.value = props.initialRows.data
+          successMessage('Alias unpinned')
+        },
+      })
+    })
+    .catch(error => {
+      bulkUnpinAliasLoading.value = false
+      if (error.response !== undefined) {
+        errorMessage(error.response.data)
+      } else {
+        errorMessage()
+      }
+    })
+}
+
+const bulkUnpinAlias = () => {
+  bulkUnpinAliasLoading.value = true
+  let selectedAliasesToUnpin = _.filter(selectedRows.value, 'pinned')
+
+  axios
+    .post(
+      '/api/v1/aliases/unpin/bulk',
+      JSON.stringify({ ids: selectedAliasesToUnpin.map(a => a.id) }),
+      { headers: { 'Content-Type': 'application/json' } },
+    )
+    .then(response => {
+      router.reload({
+        only: [
+          'initialRows',
+          'search',
+          'currentAliasStatus',
+          'sort',
+          'sortDirection',
+          'pinnedFilter',
+        ],
+        onSuccess: page => {
+          bulkUnpinAliasLoading.value = false
+          selectedRowIds.value = []
+          rows.value = props.initialRows.data
+          successMessage(response.data.message)
+        },
+      })
+    })
+    .catch(error => {
+      bulkUnpinAliasLoading.value = false
+      if (error.response?.status === 429) {
+        errorMessage('Too many bulk requests, please wait a little while before trying again')
+      } else if (error.response?.data?.message !== undefined) {
+        errorMessage(error.response.data.message)
+      } else {
+        errorMessage()
+      }
+    })
+}
+
 const deleteAlias = id => {
   deleteAliasLoading.value = true
 
@@ -1994,12 +2206,49 @@ const deleteAlias = id => {
         successMessage('Alias deleted successfully')
       } else {
         router.reload({
-          only: ['initialRows', 'search', 'currentAliasStatus', 'sort', 'sortDirection'],
+          only: [
+            'initialRows',
+            'search',
+            'currentAliasStatus',
+            'sort',
+            'sortDirection',
+            'pinnedFilter',
+          ],
           onSuccess: page => {
+            const newRows = page.props.initialRows.data
+            const currentPage = page.props.initialRows.current_page ?? 1
+
+            if (!newRows.length && currentPage > 1) {
+              const params = Object.assign({}, route().params, { page: currentPage - 1 })
+              const omitKeys = pageSize.value === 25 ? ['page_size'] : []
+
+              router.visit(route('aliases.index', _.omit(params, omitKeys)), {
+                only: [
+                  'initialRows',
+                  'search',
+                  'sort',
+                  'sortDirection',
+                  'currentAliasStatus',
+                  'pinnedFilter',
+                ],
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: page2 => {
+                  deleteAliasModalOpen.value = false
+                  deleteAliasLoading.value = false
+                  selectedRowIds.value = []
+                  rows.value = page2.props.initialRows.data
+                  successMessage('Alias deleted successfully')
+                },
+              })
+
+              return
+            }
+
             deleteAliasModalOpen.value = false
             deleteAliasLoading.value = false
             selectedRowIds.value = []
-            rows.value = props.initialRows.data
+            rows.value = newRows
             successMessage('Alias deleted successfully')
           },
         })
@@ -2040,12 +2289,49 @@ const bulkDeleteAlias = () => {
         successMessage(response.data.message)
       } else {
         router.reload({
-          only: ['initialRows', 'search', 'currentAliasStatus', 'sort', 'sortDirection'],
+          only: [
+            'initialRows',
+            'search',
+            'currentAliasStatus',
+            'sort',
+            'sortDirection',
+            'pinnedFilter',
+          ],
           onSuccess: page => {
+            const newRows = page.props.initialRows.data
+            const currentPage = page.props.initialRows.current_page ?? 1
+
+            if (!newRows.length && currentPage > 1) {
+              const params = Object.assign({}, route().params, { page: currentPage - 1 })
+              const omitKeys = pageSize.value === 25 ? ['page_size'] : []
+
+              router.visit(route('aliases.index', _.omit(params, omitKeys)), {
+                only: [
+                  'initialRows',
+                  'search',
+                  'sort',
+                  'sortDirection',
+                  'currentAliasStatus',
+                  'pinnedFilter',
+                ],
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: page2 => {
+                  bulkDeleteAliasLoading.value = false
+                  bulkDeleteAliasModalOpen.value = false
+                  selectedRowIds.value = []
+                  rows.value = page2.props.initialRows.data
+                  successMessage(response.data.message)
+                },
+              })
+
+              return
+            }
+
             bulkDeleteAliasLoading.value = false
             bulkDeleteAliasModalOpen.value = false
             selectedRowIds.value = []
-            rows.value = props.initialRows.data
+            rows.value = newRows
             successMessage(response.data.message)
           },
         })
@@ -2071,12 +2357,49 @@ const forgetAlias = id => {
     .delete(`/api/v1/aliases/${id}/forget`)
     .then(response => {
       router.reload({
-        only: ['initialRows', 'search', 'currentAliasStatus', 'sort', 'sortDirection'],
+        only: [
+          'initialRows',
+          'search',
+          'currentAliasStatus',
+          'sort',
+          'sortDirection',
+          'pinnedFilter',
+        ],
         onSuccess: page => {
+          const newRows = page.props.initialRows.data
+          const currentPage = page.props.initialRows.current_page ?? 1
+
+          if (!newRows.length && currentPage > 1) {
+            const params = Object.assign({}, route().params, { page: currentPage - 1 })
+            const omitKeys = pageSize.value === 25 ? ['page_size'] : []
+
+            router.visit(route('aliases.index', _.omit(params, omitKeys)), {
+              only: [
+                'initialRows',
+                'search',
+                'sort',
+                'sortDirection',
+                'currentAliasStatus',
+                'pinnedFilter',
+              ],
+              preserveState: true,
+              preserveScroll: true,
+              onSuccess: page2 => {
+                forgetAliasModalOpen.value = false
+                forgetAliasLoading.value = false
+                selectedRowIds.value = []
+                rows.value = page2.props.initialRows.data
+                successMessage('Alias forgotten successfully')
+              },
+            })
+
+            return
+          }
+
           forgetAliasModalOpen.value = false
           forgetAliasLoading.value = false
           selectedRowIds.value = []
-          rows.value = props.initialRows.data
+          rows.value = newRows
           successMessage('Alias forgotten successfully')
         },
       })
@@ -2105,12 +2428,49 @@ const bulkForgetAlias = () => {
     )
     .then(response => {
       router.reload({
-        only: ['initialRows', 'search', 'currentAliasStatus', 'sort', 'sortDirection'],
+        only: [
+          'initialRows',
+          'search',
+          'currentAliasStatus',
+          'sort',
+          'sortDirection',
+          'pinnedFilter',
+        ],
         onSuccess: page => {
+          const newRows = page.props.initialRows.data
+          const currentPage = page.props.initialRows.current_page ?? 1
+
+          if (!newRows.length && currentPage > 1) {
+            const params = Object.assign({}, route().params, { page: currentPage - 1 })
+            const omitKeys = pageSize.value === 25 ? ['page_size'] : []
+
+            router.visit(route('aliases.index', _.omit(params, omitKeys)), {
+              only: [
+                'initialRows',
+                'search',
+                'sort',
+                'sortDirection',
+                'currentAliasStatus',
+                'pinnedFilter',
+              ],
+              preserveState: true,
+              preserveScroll: true,
+              onSuccess: page2 => {
+                bulkForgetAliasLoading.value = false
+                bulkForgetAliasModalOpen.value = false
+                selectedRowIds.value = []
+                rows.value = page2.props.initialRows.data
+                successMessage(response.data.message)
+              },
+            })
+
+            return
+          }
+
           bulkForgetAliasLoading.value = false
           bulkForgetAliasModalOpen.value = false
           selectedRowIds.value = []
-          rows.value = props.initialRows.data
+          rows.value = newRows
           successMessage(response.data.message)
         },
       })
@@ -2139,7 +2499,14 @@ const restoreAlias = id => {
       // If showing only deleted then reload all aliases
       if (props.currentAliasStatus === 'deleted') {
         router.reload({
-          only: ['initialRows', 'search', 'currentAliasStatus', 'sort', 'sortDirection'],
+          only: [
+            'initialRows',
+            'search',
+            'currentAliasStatus',
+            'sort',
+            'sortDirection',
+            'pinnedFilter',
+          ],
           onSuccess: page => {
             restoreAliasModalOpen.value = false
             restoreAliasLoading.value = false
@@ -2183,7 +2550,14 @@ const bulkRestoreAlias = () => {
       // If showing only deleted then reload all aliases
       if (props.currentAliasStatus === 'deleted') {
         router.reload({
-          only: ['initialRows', 'search', 'currentAliasStatus', 'sort', 'sortDirection'],
+          only: [
+            'initialRows',
+            'search',
+            'currentAliasStatus',
+            'sort',
+            'sortDirection',
+            'pinnedFilter',
+          ],
           onSuccess: page => {
             bulkRestoreAliasLoading.value = false
             bulkRestoreAliasModalOpen.value = false
@@ -2224,7 +2598,7 @@ const changeSortDir = () => {
   })
 
   router.visit(route(route().current(), _.omit(params, ['page'])), {
-    only: ['initialRows', 'search', 'currentAliasStatus', 'sort', 'sortDirection'],
+    only: ['initialRows', 'search', 'currentAliasStatus', 'sort', 'sortDirection', 'pinnedFilter'],
     onSuccess: page => {
       changeSortDirLoading.value = false
     },
@@ -2248,6 +2622,7 @@ const updatePageSize = () => {
       'sortDirection',
       'currentAliasStatus',
       'initialPageSize',
+      'pinnedFilter',
     ],
     onSuccess: page => {
       updatePageSizeLoading.value = false
@@ -2418,6 +2793,14 @@ const disabledBulkDeactivate = () => {
   return !_.find(selectedRows.value, 'active')
 }
 
+const disabledBulkPin = () => {
+  return !_.find(selectedRows.value, r => !r.pinned)
+}
+
+const disabledBulkUnpin = () => {
+  return !_.find(selectedRows.value, 'pinned')
+}
+
 const disabledBulkDelete = () => {
   return !_.find(selectedRows.value, r => {
     return r.deleted_at === null
@@ -2431,7 +2814,7 @@ const disabledBulkRestore = () => {
 }
 
 const rowStyleClassFn = row => {
-  return selectedRowIds.value.includes(row.id) ? 'bg-grey-50' : ''
+  return selectedRowIds.value.includes(row.id) ? 'bg-grey-50 dark:bg-grey-950' : ''
 }
 
 const clipboard = (str, success, error) => {

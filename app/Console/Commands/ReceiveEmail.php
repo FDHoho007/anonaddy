@@ -15,10 +15,14 @@ use App\Notifications\FailedDeliveryNotification;
 use App\Notifications\NearBandwidthLimit;
 use App\Notifications\SpamReplySendAttempt;
 use App\Services\UserRuleChecker;
+use Egulias\EmailValidator\EmailValidator;
+use Egulias\EmailValidator\Validation\RFCValidation;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use ParagonIE\ConstantTime\Base32;
@@ -136,6 +140,12 @@ class ReceiveEmail extends Command
                     }
                 }
 
+                // If a bounce that doesn't originate from this server, then we don't want to forward them (potential backscatter)
+                if ($this->option('sender') === 'MAILER-DAEMON' && Str::startsWith(strtolower($this->parser->getHeader('Content-Type')), 'multipart/report') && ! isset($outboundMessage)) {
+
+                    exit(0);
+                }
+
                 // First determine if the alias already exists in the database
                 if ($this->alias = Alias::firstWhere('email', $this->inboundAlias['local_part'].'@'.$this->inboundAlias['domain'])) {
                     $this->user = $this->alias->user;
@@ -191,7 +201,12 @@ class ReceiveEmail extends Command
 
                 // Check whether this email is a reply/send from or a new email to be forwarded.
                 $destination = Str::replaceLast('=', '@', $this->inboundAlias['extension']);
-                $validEmailDestination = filter_var($destination, FILTER_VALIDATE_EMAIL);
+                $validEmailDestination = false;
+
+                if (App::environment('testing') ? filter_var($destination, FILTER_VALIDATE_EMAIL) : (new EmailValidator)->isValid($destination, new RFCValidation) || filter_var($destination, FILTER_VALIDATE_EMAIL)) {
+                    $validEmailDestination = $destination;
+                }
+
                 if ($validEmailDestination) {
                     $verifiedRecipient = $this->user->getVerifiedRecipientByEmail($this->senderFrom);
                 } else {
@@ -217,9 +232,21 @@ class ReceiveEmail extends Command
                     }
 
                     if ($this->parser->getHeader('In-Reply-To') && $this->alias) {
-                        $this->handleReply($validEmailDestination);
+
+                        // Quarantine high spam scoring emails from Rspamd
+                        if ($this->parser->getHeader('X-AnonAddy-Should-Quarantine')) {
+                            $this->handleQuarantine('R');
+                        }
+
+                        $this->handleReply($validEmailDestination, $verifiedRecipient);
                     } else {
-                        $this->handleSendFrom($aliasable ?? null, $validEmailDestination);
+
+                        // Quarantine high spam scoring emails from Rspamd
+                        if ($this->parser->getHeader('X-AnonAddy-Should-Quarantine')) {
+                            $this->handleQuarantine('S');
+                        }
+
+                        $this->handleSendFrom($aliasable ?? null, $validEmailDestination, $verifiedRecipient);
                     }
                 } elseif ($verifiedRecipient?->can_reply_send === false) {
                     // Notify user that they have not allowed this recipient to reply and send from aliases
@@ -227,6 +254,12 @@ class ReceiveEmail extends Command
 
                     exit(0);
                 } else {
+
+                    // Quarantine high spam scoring emails from Rspamd
+                    if ($this->parser->getHeader('X-AnonAddy-Should-Quarantine')) {
+                        $this->handleQuarantine('F');
+                    }
+
                     $this->handleForward($aliasable ?? null);
                 }
             }
@@ -248,7 +281,7 @@ class ReceiveEmail extends Command
         }
     }
 
-    protected function handleReply($destination)
+    protected function handleReply($destination, $verifiedRecipient)
     {
         $emailData = new EmailData($this->parser, $this->option('sender'), $this->size, 'R');
 
@@ -260,18 +293,28 @@ class ReceiveEmail extends Command
             if (UserRuleChecker::shouldBlockEmail($ruleIdsAndActions)) {
                 $this->alias->increment('emails_blocked', 1, ['last_blocked' => now()]);
 
+                $this->storeRuleFailedDelivery(false, 'Email blocked because one of your rules was applied', 'R');
+
+                exit(0);
+            }
+
+            if (UserRuleChecker::shouldQuarantineEmail($ruleIdsAndActions)) {
+                $this->alias->increment('emails_blocked', 1, ['last_blocked' => now()]);
+
+                $this->storeRuleFailedDelivery(true, 'Email quarantined because one of your rules was applied', 'R');
+
                 exit(0);
             }
 
             $ruleIds = array_keys($ruleIdsAndActions);
         }
 
-        $message = new ReplyToEmail($this->user, $this->alias, $emailData, $ruleIds);
+        $message = new ReplyToEmail($this->user, $this->alias, $verifiedRecipient, $emailData, $ruleIds);
 
         Mail::to($destination)->queue($message);
     }
 
-    protected function handleSendFrom($aliasable, $destination)
+    protected function handleSendFrom($aliasable, $destination, $verifiedRecipient)
     {
         if (is_null($this->alias)) {
             $this->alias = $this->user->aliases()->create([
@@ -303,13 +346,25 @@ class ReceiveEmail extends Command
                     $this->alias->increment('emails_blocked', 1, ['last_blocked' => now()]);
                 }
 
+                $this->storeRuleFailedDelivery(false, 'Email blocked because one of your rules was applied', 'S');
+
+                exit(0);
+            }
+
+            if (UserRuleChecker::shouldQuarantineEmail($ruleIdsAndActions)) {
+                if (! ($isNewAlias ?? false)) {
+                    $this->alias->increment('emails_blocked', 1, ['last_blocked' => now()]);
+                }
+
+                $this->storeRuleFailedDelivery(true, 'Email quarantined because one of your rules was applied', 'S');
+
                 exit(0);
             }
 
             $ruleIds = array_keys($ruleIdsAndActions);
         }
 
-        $message = new SendFromEmail($this->user, $this->alias, $emailData, $ruleIds);
+        $message = new SendFromEmail($this->user, $this->alias, $verifiedRecipient, $emailData, $ruleIds);
 
         Mail::to($destination)->queue($message);
     }
@@ -380,6 +435,18 @@ class ReceiveEmail extends Command
                     $this->alias->increment('emails_blocked', 1, ['last_blocked' => now()]);
                 }
 
+                $this->storeRuleFailedDelivery(false, 'Email blocked because one of your rules was applied', 'F');
+
+                exit(0);
+            }
+
+            if (UserRuleChecker::shouldQuarantineEmail($ruleIdsAndActions)) {
+                if (! ($isNewAlias ?? false)) {
+                    $this->alias->increment('emails_blocked', 1, ['last_blocked' => now()]);
+                }
+
+                $this->storeRuleFailedDelivery(true, 'Email quarantined because one of your rules was applied', 'F');
+
                 exit(0);
             }
 
@@ -388,19 +455,133 @@ class ReceiveEmail extends Command
             $forwardToRecipientIds = UserRuleChecker::getRecipientIdsToForwardToFromRuleIdsAndActions($ruleIdsAndActions);
 
             if (! empty($forwardToRecipientIds)) {
-                $recipients = $this->user->verifiedRecipients()->whereIn('id', $forwardToRecipientIds)->get();
-
-                if ($recipients) {
-                    $recipientsToForwardTo = $this->user->verifiedRecipients()->whereIn('id', $forwardToRecipientIds)->get();
+                $ruleRecipients = $this->user->verifiedRecipients()->whereIn('id', $forwardToRecipientIds)->get();
+                if ($ruleRecipients->isNotEmpty()) {
+                    $recipientsToForwardTo = $ruleRecipients;
                 }
             }
         }
 
         $recipientsToForwardTo->each(function ($aliasRecipient) use ($emailData, $ruleIds) {
-            $message = (new ForwardEmail($this->alias, $emailData, $aliasRecipient, $ruleIds));
+            $message = (new ForwardEmail($this->alias, $emailData, $aliasRecipient, false, $ruleIds, $this->inboundAlias['email']));
 
             Mail::to($aliasRecipient->email)->queue($message);
         });
+    }
+
+    protected function handleQuarantine($emailType)
+    {
+        $failedDeliveryId = Uuid::uuid4();
+
+        // Store the undelivered message if enabled by user.
+        if ($this->user->store_failed_deliveries) {
+            $isStored = Storage::disk('s3-fds')->put("{$failedDeliveryId}.eml", $this->trimInboundEmailForStorage($this->getInboundEmailRaw()));
+        }
+
+        $recipient = $this->alias ? $this->alias->verifiedRecipientsOrDefault()->first() : null;
+        $quarantineReason = trim((string) $this->parser->getHeader('X-AnonAddy-Quarantine-Reason'));
+        if ($quarantineReason === '') {
+            $quarantineReason = '5.7.1 Spam message quarantined by addy.io';
+        }
+
+        $failedDelivery = $this->user->failedDeliveries()->create([
+            'id' => $failedDeliveryId,
+            'recipient_id' => $recipient->id ?? null,
+            'alias_id' => $this->alias->id ?? null,
+            'is_stored' => $isStored ?? false,
+            'quarantined' => true,
+            'bounce_type' => 'spam',
+            'remote_mta' => gethostname(),
+            'sender' => $this->senderFrom ?? null,
+            'destination' => $this->inboundAlias['email'],
+            'email_type' => $emailType,
+            'status' => '5.7.1',
+            'code' => Str::limit($quarantineReason, 255),
+            'attempted_at' => now(),
+        ]);
+
+        $notifiable = $recipient?->email_verified_at ? $recipient : $this->user?->defaultRecipient;
+
+        // Notify user of failed delivery
+        if ($notifiable?->email_verified_at && $this->user?->shouldReceiveFailedDeliveryNotification(true)) {
+
+            $notifiable->notify((new FailedDeliveryNotification($this->alias->email ?? null, $this->senderFrom ?? null, $this->parser->getHeader('subject') ?? null, $failedDelivery?->is_stored, $this->user?->store_failed_deliveries, $recipient?->email, true, $this->parser->getHeader('X-AnonAddy-Authentication-Results'), $failedDelivery?->remote_mta)));
+        }
+
+        exit(0);
+    }
+
+    protected function storeRuleFailedDelivery(bool $quarantined, string $reason, string $emailType = 'IR'): void
+    {
+        $failedDeliveryId = Uuid::uuid4();
+        $isStored = false;
+
+        if ($quarantined && $this->user->store_failed_deliveries) {
+            $isStored = Storage::disk('s3-fds')->put("{$failedDeliveryId}.eml", $this->trimInboundEmailForStorage($this->getInboundEmailRaw()));
+        }
+
+        if (! $quarantined) {
+            $irDedupeKey = hash('sha256', $this->user->id.'|'.($this->alias ? $this->alias->id : '').'|'.$this->senderFrom.'|'.now()->format('Y-m-d H:i:s'));
+        }
+
+        $recipient = $this->alias ? $this->alias->verifiedRecipientsOrDefault()->first() : null;
+
+        $this->user->failedDeliveries()->create([
+            'id' => $failedDeliveryId,
+            'recipient_id' => $recipient->id ?? null,
+            'alias_id' => $this->alias->id ?? null,
+            'is_stored' => $isStored,
+            'quarantined' => $quarantined,
+            'bounce_type' => 'rule',
+            'remote_mta' => gethostname(),
+            'sender' => $this->senderFrom ?? null,
+            'destination' => $this->inboundAlias['email'],
+            'email_type' => $emailType,
+            'ir_dedupe_key' => $irDedupeKey ?? null,
+            'status' => '5.7.1',
+            'code' => Str::limit($reason, 255),
+            'attempted_at' => now(),
+        ]);
+    }
+
+    protected function trimInboundEmailForStorage(string $email): string
+    {
+        // Remove X-Spamd-Result header (including the line ending, so no blank line remains)
+        $email = preg_replace(
+            '/X-Spamd-Result:.*?(?=\r?\n(?:[A-Za-z][A-Za-z0-9-]*:|\r?\n))\r?\n/s',
+            '',
+            $email
+        );
+
+        // Remove first line if it starts with "From " before storing
+        $lines = explode(PHP_EOL, $email);
+        if (! empty($lines) && Str::startsWith(trim($lines[0]), 'From ')) {
+            array_shift($lines);
+        }
+
+        return implode(PHP_EOL, $lines);
+    }
+
+    protected function getInboundEmailRaw(): string
+    {
+        $email = $this->parser->getData();
+        if (is_string($email) && $email !== '') {
+            return $email;
+        }
+
+        if (is_string($this->rawEmail) && $this->rawEmail !== '') {
+            return $this->rawEmail;
+        }
+
+        $file = $this->argument('file');
+        if (is_string($file) && $file !== 'stream' && is_file($file)) {
+            $content = file_get_contents($file);
+            if (is_string($content) && $content !== '') {
+                return $content;
+            }
+        }
+
+        return '';
     }
 
     protected function handleBounce($outboundMessage)
@@ -524,9 +705,9 @@ class ReceiveEmail extends Command
             $notifiable = $recipient?->email_verified_at ? $recipient : $user?->defaultRecipient;
 
             // Notify user of failed delivery
-            if ($notifiable?->email_verified_at) {
+            if ($notifiable?->email_verified_at && $user?->shouldReceiveFailedDeliveryNotification(false)) {
 
-                $notifiable->notify(new FailedDeliveryNotification($alias->email ?? null, $undeliveredMessageHeaders['X-anonaddy-original-sender'] ?? null, $undeliveredMessageHeaders['Subject'] ?? null, $failedDelivery?->is_stored, $user?->store_failed_deliveries, $recipient?->email));
+                $notifiable->notify(new FailedDeliveryNotification($alias->email ?? null, $undeliveredMessageHeaders['X-anonaddy-original-sender'] ?? null, $undeliveredMessageHeaders['Subject'] ?? null, $failedDelivery?->is_stored, $user?->store_failed_deliveries, $recipient?->email, false, $this->parser->getHeader('X-AnonAddy-Authentication-Results'), $failedDelivery?->remote_mta));
 
                 Log::info('FDN '.$emailType.': '.$notifiable->email);
             }
@@ -554,7 +735,7 @@ class ReceiveEmail extends Command
 
     protected function checkRateLimit()
     {
-        \Illuminate\Support\Facades\Redis::throttle("user:{$this->user->id}:limit:emails")
+        Redis::throttle("user:{$this->user->id}:limit:emails")
             ->allow(config('anonaddy.limit'))
             ->every(3600)
             ->then(
@@ -688,7 +869,7 @@ class ReceiveEmail extends Command
         $parts = explode('_', $localPart);
 
         if (count($parts) !== 3) {
-            Log::channel('single')->info('VERP invalid email: '.$verp);
+            Log::info('VERP invalid email: '.$verp);
 
             return;
         }
@@ -698,7 +879,7 @@ class ReceiveEmail extends Command
 
             $signature = Base32::decodeNoPadding($parts[2]);
         } catch (\Exception $e) {
-            Log::channel('single')->info('VERP base32 decode failure: '.$verp.' '.$e->getMessage());
+            Log::info('VERP base32 decode failure: '.$verp.' '.$e->getMessage());
 
             return;
         }
@@ -706,7 +887,7 @@ class ReceiveEmail extends Command
         $expectedSignature = substr(hash_hmac('sha3-224', $id, config('anonaddy.secret')), 0, 8);
 
         if ($signature !== $expectedSignature) {
-            Log::channel('single')->info('VERP invalid signature: '.$verp);
+            Log::info('VERP invalid signature: '.$verp);
 
             return;
         }

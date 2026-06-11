@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\DisplayFromFormat;
+use App\Enums\FailedDeliveryNotificationPreference;
+use App\Enums\ListUnsubscribeBehaviour;
 use App\Enums\LoginRedirect;
 use App\Notifications\CustomResetPassword;
 use App\Notifications\CustomVerifyEmail;
@@ -16,6 +18,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -41,6 +44,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'from_name',
         'email_subject',
         'banner_location',
+        'spam_warning_behaviour',
+        'list_unsubscribe_behaviour',
         'display_from_format',
         'login_redirect',
         'catch_all',
@@ -50,9 +55,12 @@ class User extends Authenticatable implements MustVerifyEmail
         'defer_new_aliases_until',
         'default_alias_domain',
         'default_alias_format',
+        'alias_separator',
         'use_reply_to',
         'store_failed_deliveries',
+        'failed_delivery_notification_preference',
         'save_alias_last_used',
+        'dark_mode',
         'default_username_id',
         'default_recipient_id',
         'password',
@@ -94,7 +102,9 @@ class User extends Authenticatable implements MustVerifyEmail
         'webauthn_enabled' => 'boolean',
         'use_reply_to' => 'boolean',
         'store_failed_deliveries' => 'boolean',
+        'failed_delivery_notification_preference' => FailedDeliveryNotificationPreference::class,
         'save_alias_last_used' => 'boolean',
+        'dark_mode' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'email_verified_at' => 'datetime',
@@ -102,6 +112,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'defer_until' => 'datetime',
         'defer_new_aliases_until' => 'datetime',
         'display_from_format' => DisplayFromFormat::class,
+        'list_unsubscribe_behaviour' => ListUnsubscribeBehaviour::class,
         'login_redirect' => LoginRedirect::class,
     ];
 
@@ -255,6 +266,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function rules()
     {
         return $this->hasMany(Rule::class);
+    }
+
+    /**
+     * Get all of the user's blocked senders (email or domain blocklist).
+     */
+    public function blockedSenders()
+    {
+        return $this->hasMany(BlockedSender::class);
     }
 
     /**
@@ -485,7 +504,7 @@ class User extends Authenticatable implements MustVerifyEmail
             return false;
         }
 
-        return \Illuminate\Support\Facades\Redis::throttle("user:{$this->id}:limit:new-alias")
+        return Redis::throttle("user:{$this->id}:limit:new-alias")
             ->allow(config('anonaddy.new_alias_hourly_limit'))
             ->every(3600)
             ->then(
@@ -582,11 +601,49 @@ class User extends Authenticatable implements MustVerifyEmail
         }
     }
 
+    /**
+     * Get the separator character to use when generating alias local parts.
+     * Resolves 'random' to one of '.', '_', '-' per generation.
+     */
+    public function aliasSeparatorForGeneration(): string
+    {
+        $setting = $this->alias_separator ?? '.';
+        if ($setting === 'random') {
+            return ['.', '_', '-'][mt_rand(0, 2)];
+        }
+
+        return $setting;
+    }
+
     public function generateRandomWordLocalPart()
     {
-        return collect(config('anonaddy.wordlist'))
-            ->random(2)
-            ->implode('.').mt_rand(0, 999);
+        $sep = $this->aliasSeparatorForGeneration();
+        $words = collect(config('anonaddy.wordlist'))->random(2)->map(fn ($w) => strtolower($w));
+
+        return $words->implode($sep).mt_rand(0, 999);
+    }
+
+    public function generateRandomNameLocalPart(string $gender): string
+    {
+        $firstNames = $gender === 'male'
+            ? config('anonaddy.male_first_names')
+            : config('anonaddy.female_first_names');
+        $first = collect($firstNames)->random();
+        $surname = collect(config('anonaddy.surnames'))->random();
+        $digits = str_pad((string) mt_rand(0, 999), 3, '0', STR_PAD_LEFT);
+        $sep = $this->aliasSeparatorForGeneration();
+
+        return strtolower($first).$sep.strtolower($surname).$digits;
+    }
+
+    public function generateRandomNounLocalPart(): string
+    {
+        $adjective = collect(config('anonaddy.adjectives'))->random();
+        $noun = collect(config('anonaddy.nouns'))->random();
+        $digits = str_pad((string) mt_rand(0, 999), 3, '0', STR_PAD_LEFT);
+        $sep = $this->aliasSeparatorForGeneration();
+
+        return strtolower($adjective).$sep.strtolower($noun).$digits;
     }
 
     public function generateRandomCharacterLocalPart(int $length): string
@@ -651,6 +708,18 @@ class User extends Authenticatable implements MustVerifyEmail
     public function canCreateUsernameSubdomainAliases()
     {
         return config('anonaddy.non_admin_username_subdomains') || $this->isAdminUser();
+    }
+
+    public function shouldReceiveFailedDeliveryNotification(bool $quarantined): bool
+    {
+        $preference = $this->failed_delivery_notification_preference ?? FailedDeliveryNotificationPreference::All;
+
+        return match ($preference) {
+            FailedDeliveryNotificationPreference::All => true,
+            FailedDeliveryNotificationPreference::NormalOnly => ! $quarantined,
+            FailedDeliveryNotificationPreference::QuarantinedOnly => $quarantined,
+            FailedDeliveryNotificationPreference::None => false,
+        };
     }
 
     /**

@@ -5,12 +5,12 @@
 
     <div class="sm:flex sm:items-center mb-6">
       <div class="sm:flex-auto">
-        <h1 class="text-2xl font-semibold text-grey-900">Domains</h1>
-        <p class="mt-2 text-sm text-grey-700">
+        <h1 class="text-2xl font-semibold text-grey-900 dark:text-white">Domains</h1>
+        <p class="mt-2 text-sm text-grey-700 dark:text-grey-200">
           A list of all the domains {{ search ? 'found for your search' : 'in your account' }}
           <button @click="moreInfoOpen = !moreInfoOpen">
             <InformationCircleIcon
-              class="h-6 w-6 inline-block cursor-pointer text-grey-500"
+              class="h-6 w-6 inline-block cursor-pointer text-grey-500 dark:text-grey-200"
               title="Click for more information"
             />
           </button>
@@ -27,6 +27,9 @@
       </div>
     </div>
 
+    <p v-if="rows.length" class="mb-2 text-xs text-grey-500 dark:text-grey-300 md:hidden">
+      Swipe horizontally to view domain actions.
+    </p>
     <vue-good-table
       v-if="rows.length"
       v-on:sort-change="debounceToolips"
@@ -42,7 +45,7 @@
         <span v-if="props.column.label == 'Active'">
           {{ props.column.label }}
           <span
-            class="tooltip outline-none"
+            class="tooltip outline-hidden"
             data-tippy-content="When a domain is deactivated, any messages sent to its aliases will be silently discarded. The sender will not be notified of the unsuccessful delivery."
           >
             <icon name="info" class="inline-block w-4 h-4 text-grey-300 fill-current" />
@@ -51,7 +54,7 @@
         <span v-else-if="props.column.label == 'Catch-All'">
           {{ props.column.label }}
           <span
-            class="tooltip outline-none"
+            class="tooltip outline-hidden"
             data-tippy-content="When catch-all is disabled, only aliases that already exist for the domain will forward messages. They will not be automatically created on-the-fly unless you are using auto create regex."
           >
             <icon name="info" class="inline-block w-4 h-4 text-grey-300 fill-current" />
@@ -64,13 +67,13 @@
       <template #table-row="props">
         <span
           v-if="props.column.field == 'created_at'"
-          class="tooltip outline-none cursor-default text-sm text-grey-500"
+          class="tooltip outline-hidden cursor-default text-sm text-grey-500 dark:text-grey-300"
           :data-tippy-content="$filters.formatDate(rows[props.row.originalIndex].created_at)"
           >{{ $filters.timeAgo(props.row.created_at) }}
         </span>
         <span v-else-if="props.column.field == 'domain'">
           <button
-            class="tooltip cursor-pointer outline-none font-medium text-grey-700"
+            class="tooltip cursor-pointer outline-hidden font-medium text-grey-700 dark:text-grey-200"
             data-tippy-content="Click to copy"
             @click="clipboard(rows[props.row.originalIndex].domain)"
           >
@@ -84,7 +87,7 @@
               @keyup.esc="domainIdToEdit = domainDescriptionToEdit = ''"
               v-model="domainDescriptionToEdit"
               type="text"
-              class="grow appearance-none bg-grey-50 border text-grey-700 focus:outline-none rounded px-2 py-1"
+              class="grow appearance-none bg-grey-50 border text-grey-700 focus:outline-hidden rounded px-2 py-1 dark:text-white dark:bg-white/5"
               :class="
                 domainDescriptionToEdit.length > 200 ? 'border-red-500' : 'border-transparent'
               "
@@ -100,7 +103,7 @@
             </button>
           </div>
           <div v-else-if="props.row.description" class="flex items-centers">
-            <span class="outline-none text-grey-500 mr-2">{{
+            <span class="outline-hidden text-grey-500 dark:text-grey-300 mr-2">{{
               $filters.truncate(props.row.description, 60)
             }}</span>
             <button
@@ -125,7 +128,7 @@
         <span v-else-if="props.column.field === 'default_recipient'">
           <div v-if="props.row.default_recipient">
             <span
-              class="tooltip cursor-pointer font-medium text-grey-500 mr-2"
+              class="tooltip cursor-pointer font-medium text-grey-500 dark:text-grey-300 mr-2"
               data-tippy-content="Click to copy"
               @click="clipboard(rows[props.row.originalIndex].default_recipient.email)"
             >
@@ -154,11 +157,13 @@
               as="button"
               type="button"
               data-tippy-content="Click to view the aliases using this domain"
-              class="text-indigo-600 hover:text-indigo-900 font-medium tooltip"
+              class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-500 font-medium tooltip"
               >{{ props.row.aliases_count.toLocaleString() }}</Link
             >
           </span>
-          <span v-else class="text-grey-500"> {{ props.row.aliases_count }}</span>
+          <span v-else class="text-grey-500 dark:text-grey-300">
+            {{ props.row.aliases_count }}</span
+          >
         </span>
         <span v-else-if="props.column.field === 'active'" class="flex items-center">
           <Toggle
@@ -175,103 +180,102 @@
           />
         </span>
         <span v-else-if="props.column.field === 'domain_sending_verified_at'">
-          <div v-if="props.row.domain_sending_verified_at || props.row.domain_mx_validated_at">
-            <svg
-              v-if="props.row.domain_sending_verified_at && props.row.domain_mx_validated_at"
-              class="h-5 w-5 inline-block tooltip focus:outline-none"
-              data-tippy-content="Domain fully verified"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-            >
-              <g fill="none" fill-rule="evenodd">
-                <circle class="text-green-100 fill-current" cx="10" cy="10" r="10"></circle>
-                <polyline
-                  class="text-green-800 stroke-current"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  points="6 10 8.667 12.667 14 7.333"
-                ></polyline>
-              </g>
-            </svg>
-            <svg
-              v-else-if="!props.row.domain_mx_validated_at"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              class="h-5 w-5 inline-block tooltip focus:outline-none"
-              data-tippy-content="MX records invalid"
-            >
-              <g fill="none" fill-rule="evenodd">
-                <circle cx="10" cy="10" r="10" fill="#FF9B9B"></circle>
-                <polyline
-                  stroke="#AB091E"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  points="14 6 6 14"
-                ></polyline>
-                <polyline
-                  stroke="#AB091E"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  points="6 6 14 14"
-                ></polyline>
-              </g>
-            </svg>
-            <svg
-              v-else
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              class="h-5 w-5 inline-block tooltip focus:outline-none"
-              data-tippy-content="DNS records for sending invalid"
-            >
-              <g fill="none" fill-rule="evenodd">
-                <circle cx="10" cy="10" r="10" fill="#FF9B9B"></circle>
-                <polyline
-                  stroke="#AB091E"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  points="14 6 6 14"
-                ></polyline>
-                <polyline
-                  stroke="#AB091E"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  points="6 6 14 14"
-                ></polyline>
-              </g>
-            </svg>
-            <button
-              @click="openCheckRecordsModal(rows[props.row.originalIndex])"
-              class="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 text-sm ml-2 text-grey-500 rounded-sm"
-            >
-              Recheck
-            </button>
-          </div>
+          <svg
+            v-if="props.row.domain_sending_verified_at && props.row.domain_mx_validated_at"
+            class="h-5 w-5 inline-block tooltip focus:outline-hidden"
+            data-tippy-content="Domain fully verified"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+          >
+            <g fill="none" fill-rule="evenodd">
+              <circle class="text-green-100 fill-current" cx="10" cy="10" r="10"></circle>
+              <polyline
+                class="text-green-800 stroke-current"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                points="6 10 8.667 12.667 14 7.333"
+              ></polyline>
+            </g>
+          </svg>
+          <svg
+            v-else-if="!props.row.domain_mx_validated_at"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            class="h-5 w-5 inline-block tooltip focus:outline-hidden"
+            data-tippy-content="MX records invalid"
+          >
+            <g fill="none" fill-rule="evenodd">
+              <circle cx="10" cy="10" r="10" fill="#FF9B9B"></circle>
+              <polyline
+                stroke="#AB091E"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                points="14 6 6 14"
+              ></polyline>
+              <polyline
+                stroke="#AB091E"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                points="6 6 14 14"
+              ></polyline>
+            </g>
+          </svg>
+          <svg
+            v-else
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            class="h-5 w-5 inline-block tooltip focus:outline-hidden"
+            data-tippy-content="DNS records for sending invalid"
+          >
+            <g fill="none" fill-rule="evenodd">
+              <circle cx="10" cy="10" r="10" fill="#FF9B9B"></circle>
+              <polyline
+                stroke="#AB091E"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                points="14 6 6 14"
+              ></polyline>
+              <polyline
+                stroke="#AB091E"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                points="6 6 14 14"
+              ></polyline>
+            </g>
+          </svg>
+          <button
+            v-if="props.row.domain_sending_verified_at || props.row.domain_mx_validated_at"
+            @click="openCheckRecordsModal(rows[props.row.originalIndex])"
+            class="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 text-sm ml-2 text-grey-500 dark:text-grey-300 rounded-sm"
+          >
+            Recheck
+          </button>
           <button
             v-else
             @click="openCheckRecordsModal(rows[props.row.originalIndex])"
-            class="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 text-sm text-grey-500 rounded-sm"
+            class="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 text-sm ml-2 text-grey-500 dark:text-grey-300 rounded-sm"
           >
             Check Records
           </button>
         </span>
-        <span v-else class="flex items-center justify-center outline-none" tabindex="-1">
+        <span v-else class="flex items-center justify-center outline-hidden" tabindex="-1">
           <Link
             :href="route('domains.edit', props.row.id)"
             as="button"
             type="button"
-            class="text-indigo-500 hover:text-indigo-800 font-medium"
+            class="text-indigo-500 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-500 font-medium"
             >Edit<span class="sr-only">, {{ props.row.domain }}</span></Link
           >
           <button
             @click="openDeleteModal(props.row.id)"
             as="button"
             type="button"
-            class="text-indigo-500 hover:text-indigo-800 font-medium ml-4"
+            class="text-indigo-500 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-500 font-medium ml-4"
           >
             Delete<span class="sr-only">, {{ props.row.domain }}</span>
           </button>
@@ -280,14 +284,18 @@
     </vue-good-table>
 
     <div v-else-if="search" class="text-center">
-      <GlobeAltIcon class="mx-auto h-16 w-16 text-grey-400" />
-      <h3 class="mt-2 text-lg font-medium text-grey-900">No Domains found for that search</h3>
-      <p class="mt-1 text-md text-grey-500">Try entering a different search term.</p>
+      <GlobeAltIcon class="mx-auto h-16 w-16 text-grey-400 dark:text-grey-200" />
+      <h3 class="mt-2 text-lg font-medium text-grey-900 dark:text-white">
+        No Domains found for that search
+      </h3>
+      <p class="mt-1 text-md text-grey-500 dark:text-grey-200">
+        Try entering a different search term.
+      </p>
       <div class="mt-6">
         <Link
           :href="route('domains.index')"
           type="button"
-          class="inline-flex items-center rounded-md border border-transparent bg-cyan-400 hover:bg-cyan-300 text-cyan-900 px-4 py-2 text-sm font-medium shadow-sm focus:outline-none"
+          class="inline-flex items-center rounded-md border border-transparent bg-cyan-400 hover:bg-cyan-300 text-cyan-900 px-4 py-2 text-sm font-medium shadow-sm focus:outline-hidden"
         >
           View All Domains
         </Link>
@@ -295,14 +303,16 @@
     </div>
 
     <div v-else class="text-center">
-      <GlobeAltIcon class="mx-auto h-16 w-16 text-grey-400" />
-      <h3 class="mt-2 text-lg font-medium text-grey-900">No Domains</h3>
-      <p class="mt-1 text-md text-grey-500">Get started by creating a new domain.</p>
+      <GlobeAltIcon class="mx-auto h-16 w-16 text-grey-400 dark:text-grey-200" />
+      <h3 class="mt-2 text-lg font-medium text-grey-900 dark:text-white">No Domains</h3>
+      <p class="mt-1 text-md text-grey-500 dark:text-grey-200">
+        Get started by creating a new domain.
+      </p>
       <div class="mt-6">
         <button
           @click="openAddDomainModal"
           type="button"
-          class="inline-flex items-center rounded-md border border-transparent bg-cyan-400 hover:bg-cyan-300 text-cyan-900 px-4 py-2 text-sm font-medium shadow-sm focus:outline-none"
+          class="inline-flex items-center rounded-md border border-transparent bg-cyan-400 hover:bg-cyan-300 text-cyan-900 px-4 py-2 text-sm font-medium shadow-sm focus:outline-hidden"
         >
           <PlusIcon class="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
           Add a Domain
@@ -314,20 +324,20 @@
       <template v-if="!domainToCheck" v-slot:title> Add new domain </template>
       <template v-else v-slot:title> Check DNS records </template>
       <template v-if="!domainToCheck" v-slot:content>
-        <p class="mt-4 mb-2 text-grey-700">
+        <p class="mt-4 mb-2 text-grey-700 dark:text-grey-200">
           To verify ownership of the domain, please add the following TXT record and then click Add
           Domain below. Once you've added the domain you can safely remove this TXT record.
         </p>
         <div class="table w-full">
           <div class="table-row">
-            <div class="table-cell py-2 font-semibold">Type</div>
-            <div class="table-cell p-2 font-semibold">Host</div>
-            <div class="table-cell py-2 font-semibold">Value/Points to</div>
+            <div class="table-cell py-2 font-semibol dark:text-grey-100">Type</div>
+            <div class="table-cell p-2 font-semibold dark:text-grey-100">Host</div>
+            <div class="table-cell py-2 font-semibold dark:text-grey-100">Value/Points to</div>
           </div>
           <div class="table-row">
-            <div class="table-cell py-2">TXT</div>
-            <div class="table-cell p-2">@</div>
-            <div class="table-cell py-2">
+            <div class="table-cell py-2 dark:text-grey-100">TXT</div>
+            <div class="table-cell p-2 dark:text-grey-100">@</div>
+            <div class="table-cell py-2 dark:text-grey-100">
               <button
                 @click="clipboard(`aa-verify=${aaVerify}`)"
                 class="break-all focus-visible:outline-indigo-600"
@@ -345,7 +355,7 @@
           <input
             v-model="newDomain"
             type="text"
-            class="block w-full rounded-md border-0 py-2 pr-10 ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-base sm:leading-6 mb-6"
+            class="block w-full rounded-md border-0 py-2 pr-10 ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-base sm:leading-6 mb-6 dark:bg-white/5 dark:text-white"
             :class="errors.newDomain ? 'ring-red-500' : ''"
             placeholder="example.com"
             autofocus
@@ -361,16 +371,16 @@
           </button>
           <button
             @click="addDomainModalOpen = false"
-            class="ml-4 px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="ml-4 px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Cancel
           </button>
         </div>
-        <div class="mt-2 text-sm">
+        <div class="mt-2 text-sm dark:text-grey-200">
           For <b>subdomains</b> you will need to change the host value, please read
           <a
             href="https://addy.io/help/adding-a-custom-domain/"
-            class="text-indigo-700 font-bold"
+            class="text-indigo-700 dark:text-indigo-400 font-bold"
             target="_blank"
             rel="nofollow noreferrer noopener"
             >this article</a
@@ -378,13 +388,13 @@
         </div>
       </template>
       <template v-else v-slot:content>
-        <p class="mt-4 mb-2 text-grey-700">
+        <p class="mt-4 mb-2 text-grey-700 dark:text-grey-200">
           Please set the following DNS records for your custom domain. <b>Note</b>: if you are
           already using your custom domain for emails elsewhere e.g. with ProtonMail, NameCheap etc.
           please
           <a
             href="https://addy.io/faq/#can-i-add-a-domain-if-im-already-using-it-for-email-somewhere-else"
-            class="text-indigo-700 font-bold"
+            class="text-indigo-700 dark:text-indigo-400 font-bold"
             target="_blank"
             rel="nofollow noreferrer noopener"
             >read this</a
@@ -392,18 +402,18 @@
         </p>
         <div class="table w-full">
           <div class="table-row">
-            <div class="table-cell py-2 font-semibold">Type</div>
-            <div class="table-cell py-2 px-4 font-semibold">Host</div>
-            <div class="table-cell py-2 font-semibold">Value/Points to</div>
+            <div class="table-cell py-2 font-semibold dark:text-grey-100">Type</div>
+            <div class="table-cell py-2 px-4 font-semibold dark:text-grey-100">Host</div>
+            <div class="table-cell py-2 font-semibold dark:text-grey-100">Value/Points to</div>
           </div>
           <div class="table-row">
-            <div class="table-cell py-2">MX 10</div>
-            <div class="table-cell py-2 px-4">
+            <div class="table-cell py-2 dark:text-grey-100">MX 10</div>
+            <div class="table-cell py-2 px-4 dark:text-grey-100">
               <button title="Copy" @click="clipboard('@')" class="focus-visible:outline-indigo-600">
                 @
               </button>
             </div>
-            <div class="table-cell py-2 break-words">
+            <div class="table-cell py-2 break-words dark:text-grey-100">
               <button
                 title="Copy"
                 @click="clipboard(hostname)"
@@ -414,13 +424,13 @@
             </div>
           </div>
           <div class="table-row">
-            <div class="table-cell py-2">TXT</div>
-            <div class="table-cell py-2 px-4">
+            <div class="table-cell py-2 dark:text-grey-100">TXT</div>
+            <div class="table-cell py-2 px-4 dark:text-grey-100">
               <button title="Copy" @click="clipboard('@')" class="focus-visible:outline-indigo-600">
                 @
               </button>
             </div>
-            <div class="table-cell py-2 break-words">
+            <div class="table-cell py-2 break-words dark:text-grey-100">
               <button
                 title="Copy"
                 @click="clipboard('v=spf1 mx -all')"
@@ -431,8 +441,8 @@
             </div>
           </div>
           <div class="table-row">
-            <div class="table-cell py-2">CNAME</div>
-            <div class="table-cell py-2 px-4">
+            <div class="table-cell py-2 dark:text-grey-100">CNAME</div>
+            <div class="table-cell py-2 px-4 dark:text-grey-100">
               <button
                 title="Copy"
                 @click="clipboard(`${dkimSelector}._domainkey`)"
@@ -441,7 +451,7 @@
                 {{ dkimSelector }}._domainkey
               </button>
             </div>
-            <div class="table-cell py-2 break-words">
+            <div class="table-cell py-2 break-words dark:text-grey-100">
               <button
                 title="Copy"
                 @click="clipboard(`${dkimSelector}._domainkey.${domainName}.`)"
@@ -452,8 +462,8 @@
             </div>
           </div>
           <div class="table-row">
-            <div class="table-cell py-2">TXT</div>
-            <div class="table-cell py-2 px-4">
+            <div class="table-cell py-2 dark:text-grey-100">TXT</div>
+            <div class="table-cell py-2 px-4 dark:text-grey-100">
               <button
                 title="Copy"
                 @click="clipboard('_dmarc')"
@@ -462,7 +472,7 @@
                 _dmarc
               </button>
             </div>
-            <div class="table-cell py-2 break-words">
+            <div class="table-cell py-2 break-words dark:text-grey-100">
               <button
                 title="Copy"
                 @click="clipboard('v=DMARC1; p=quarantine; adkim=s')"
@@ -485,16 +495,16 @@
           </button>
           <button
             @click="closeCheckRecordsModal"
-            class="ml-4 px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="ml-4 px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Cancel
           </button>
         </div>
-        <div class="mt-2 text-sm">
+        <div class="mt-2 text-sm dark:text-grey-200">
           For more information or if you are adding a <b>subdomain</b> please read
           <a
             href="https://addy.io/help/adding-a-custom-domain/"
-            class="text-indigo-700 font-bold"
+            class="text-indigo-700 dark:text-indigo-400 font-bold"
             target="_blank"
             rel="nofollow noreferrer noopener"
             >this article</a
@@ -506,7 +516,7 @@
     <Modal :open="domainDefaultRecipientModalOpen" @close="closeDomainDefaultRecipientModal">
       <template v-slot:title> Update Default Recipient </template>
       <template v-slot:content>
-        <p class="my-4 text-grey-700">
+        <p class="my-4 text-grey-700 dark:text-grey-200">
           Select the default recipient for this domain. This overrides the default recipient in your
           account settings. Leave it empty if you would like to use the default recipient in your
           account settings.
@@ -525,7 +535,9 @@
           track-by="email"
         >
         </multiselect>
-        <div class="mt-6 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+        <div
+          class="mt-6 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 dark:text-grey-200"
+        >
           <button
             type="button"
             @click="editDefaultRecipient()"
@@ -537,7 +549,7 @@
           </button>
           <button
             @click="closeDomainDefaultRecipientModal()"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Cancel
           </button>
@@ -548,7 +560,7 @@
     <Modal :open="deleteDomainModalOpen" @close="closeDeleteModal">
       <template v-slot:title> Delete domain </template>
       <template v-slot:content>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           Are you sure you want to delete this domain? This will also
           <b>remove all aliases associated with this domain</b>. You will no longer be able to
           receive any emails at this domain.
@@ -565,7 +577,7 @@
           </button>
           <button
             @click="closeDeleteModal"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Cancel
           </button>
@@ -576,17 +588,19 @@
     <Modal :open="moreInfoOpen" @close="moreInfoOpen = false">
       <template v-slot:title> More information </template>
       <template v-slot:content>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           Adding a custom domain such as <b>example.com</b> will allow you to create unlimited
           aliases e.g. xyz@example.com. You can also add a subdomain such as
           <b>mail.example.com</b>.
         </p>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           To get started all you have to do is add a TXT record to your domain to verify ownership
           and then add the domain here by clicking the button above.
         </p>
-        <p class="mt-4 text-grey-700">The TXT record needs to have the following values:</p>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
+          The TXT record needs to have the following values:
+        </p>
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           Type: <b>TXT</b><br />
           Host: <b>@</b><br />
           Value:
@@ -597,7 +611,7 @@
             >aa-verify={{ aaVerify }}</b
           ><br />
         </p>
-        <p class="mt-4 text-grey-700">
+        <p class="mt-4 text-grey-700 dark:text-grey-200">
           Once the DNS changes propagate and you have verified ownership of the domain you will need
           to add a few more records to be able to receive emails at your own domain.
         </p>
@@ -605,7 +619,7 @@
         <div class="mt-6 flex flex-col sm:flex-row">
           <button
             @click="moreInfoOpen = false"
-            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="px-4 py-3 text-grey-800 font-semibold bg-white hover:bg-grey-50 dark:text-grey-100 dark:hover:bg-grey-700 dark:bg-grey-600 dark:border-grey-700 border border-grey-100 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Close
           </button>
@@ -762,7 +776,7 @@ const addNewDomain = () => {
       } else if (error.response.status === 422) {
         errorMessage(error.response.data.errors.domain[0])
       } else if (error.response.status === 429) {
-        errorMessage('You are making too many requests')
+        errorMessage('You are making too many requests, please try again in a couple of minutes')
       } else if (error.response.status === 404) {
         warnMessage(
           'Verification TXT record not found, this could be due to DNS caching, please try again shortly.',

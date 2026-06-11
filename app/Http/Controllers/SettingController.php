@@ -20,14 +20,19 @@ class SettingController extends Controller
         return Inertia::render('Settings/General', [
             'defaultAliasDomain' => user()->default_alias_domain,
             'defaultAliasFormat' => user()->default_alias_format,
+            'aliasSeparator' => user()->alias_separator,
             'loginRedirect' => user()->login_redirect->value,
             'displayFromFormat' => user()->display_from_format->value,
             'useReplyTo' => user()->use_reply_to,
             'storeFailedDeliveries' => user()->store_failed_deliveries,
+            'failedDeliveryNotificationPreference' => user()->failed_delivery_notification_preference->value,
+            'darkMode' => user()->dark_mode,
             'saveAliasLastUsed' => user()->save_alias_last_used,
             'fromName' => user()->from_name ?? '',
             'emailSubject' => user()->email_subject ?? '',
             'bannerLocation' => user()->banner_location,
+            'spamWarningBehaviour' => user()->spam_warning_behaviour,
+            'listUnsubscribeBehaviour' => user()->list_unsubscribe_behaviour->value,
             'domainOptions' => user()->domainOptions(),
         ]);
     }

@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\AllowedRecipientController;
 use App\Http\Controllers\Api\ApiTokenDetailController;
 use App\Http\Controllers\Api\AppVersionController;
 use App\Http\Controllers\Api\AttachedRecipientOnlyController;
+use App\Http\Controllers\Api\BlocklistController;
 use App\Http\Controllers\Api\CatchAllDomainController;
 use App\Http\Controllers\Api\CatchAllUsernameController;
 use App\Http\Controllers\Api\ChartDataController;
@@ -23,15 +24,19 @@ use App\Http\Controllers\Api\EncryptedRecipientController;
 use App\Http\Controllers\Api\FailedDeliveryController;
 use App\Http\Controllers\Api\InlineEncryptedRecipientController;
 use App\Http\Controllers\Api\LoginableUsernameController;
+use App\Http\Controllers\Api\PinnedAliasController;
 use App\Http\Controllers\Api\ProtectedHeadersRecipientController;
 use App\Http\Controllers\Api\RecipientController;
 use App\Http\Controllers\Api\RecipientKeyController;
+use App\Http\Controllers\Api\RemovePgpKeysRecipientController;
+use App\Http\Controllers\Api\RemovePgpSignaturesRecipientController;
 use App\Http\Controllers\Api\ReorderRuleController;
 use App\Http\Controllers\Api\ResendableFailedDeliveryController;
 use App\Http\Controllers\Api\RuleController;
 use App\Http\Controllers\Api\UsernameController;
 use App\Http\Controllers\Api\UsernameDefaultRecipientController;
 use App\Http\Controllers\Auth\ApiAuthenticationController;
+use App\Http\Controllers\BlocklistCheckController;
 use App\Http\Controllers\RecipientVerificationController;
 use Illuminate\Support\Facades\Route;
 
@@ -46,8 +51,15 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+// Bblocklist check for Rspamd (allowed IPs + optional secret only)
+Route::get('blocklist-check', [BlocklistCheckController::class, 'check'])
+    ->middleware('blocklist.api')
+    ->name('blocklist.check');
+
 // API auth routes for mobile apps and browser extension
 Route::controller(ApiAuthenticationController::class)->prefix('auth')->group(function () {
+    Route::post('/login', 'login');
+    Route::post('/mfa', 'mfa');
     Route::post('/logout', 'logout');
     Route::post('/delete-account', 'destroy');
 });
@@ -70,6 +82,8 @@ Route::group([
         Route::post('/aliases/get/bulk', 'get');
         Route::post('/aliases/activate/bulk', 'activate');
         Route::post('/aliases/deactivate/bulk', 'deactivate');
+        Route::post('/aliases/pin/bulk', 'pin');
+        Route::post('/aliases/unpin/bulk', 'unpin');
         Route::post('/aliases/delete/bulk', 'delete');
         Route::post('/aliases/restore/bulk', 'restore');
         Route::post('/aliases/forget/bulk', 'forget');
@@ -79,6 +93,11 @@ Route::group([
     Route::controller(ActiveAliasController::class)->group(function () {
         Route::post('/active-aliases', 'store');
         Route::delete('/active-aliases/{id}', 'destroy');
+    });
+
+    Route::controller(PinnedAliasController::class)->group(function () {
+        Route::post('/pinned-aliases', 'store');
+        Route::delete('/pinned-aliases/{id}', 'destroy');
     });
 
     Route::controller(AttachedRecipientOnlyController::class)->group(function () {
@@ -115,6 +134,15 @@ Route::group([
     Route::controller(ProtectedHeadersRecipientController::class)->group(function () {
         Route::post('/protected-headers-recipients', 'store');
         Route::delete('/protected-headers-recipients/{id}', 'destroy');
+    });
+    Route::controller(RemovePgpKeysRecipientController::class)->group(function () {
+        Route::post('/remove-pgp-keys-recipients', 'store');
+        Route::delete('/remove-pgp-keys-recipients/{id}', 'destroy');
+    });
+
+    Route::controller(RemovePgpSignaturesRecipientController::class)->group(function () {
+        Route::post('/remove-pgp-signatures-recipients', 'store');
+        Route::delete('/remove-pgp-signatures-recipients/{id}', 'destroy');
     });
 
     Route::controller(AllowedRecipientController::class)->group(function () {
@@ -190,6 +218,14 @@ Route::group([
 
     Route::get('/failed-deliveries/{id}/download', [DownloadableFailedDeliveryController::class, 'index']);
     Route::post('/failed-deliveries/{id}/resend', [ResendableFailedDeliveryController::class, 'index']);
+
+    Route::controller(BlocklistController::class)->group(function () {
+        Route::get('/blocklist', 'index');
+        Route::post('/blocklist', 'store');
+        Route::post('/blocklist/store/bulk', 'storeBulk');
+        Route::post('/blocklist/delete/bulk', 'destroyBulk');
+        Route::delete('/blocklist/{id}', 'destroy');
+    });
 
     Route::get('/domain-options', [DomainOptionController::class, 'index']);
 
