@@ -30,6 +30,8 @@ $resolveList = function (string $envKey, string $defaultPath): array {
     return array_values(array_filter(array_map('trim', explode(',', $value))));
 };
 
+$bandwidthLimit = env('ANONADDY_BANDWIDTH_LIMIT', 104857600);
+
 return [
 
     /*
@@ -210,7 +212,7 @@ return [
     |
     */
 
-    'bandwidth_limit' => (int) env('ANONADDY_BANDWIDTH_LIMIT', 104857600),
+    'bandwidth_limit' => is_string($bandwidthLimit) && strtoupper(trim($bandwidthLimit)) === 'INF' ? INF : (int) $bandwidthLimit,
 
     /*
     |--------------------------------------------------------------------------

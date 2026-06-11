@@ -31,7 +31,7 @@ class UserResource extends JsonResource
             'banner_location' => $this->banner_location,
             'spam_warning_behaviour' => $this->spam_warning_behaviour,
             'bandwidth' => $this->bandwidth,
-            'bandwidth_limit' => $this->getBandwidthLimit(),
+            'bandwidth_limit' => $this->getBandwidthLimitAPI(),
             'username_count' => $this->usernames()->count(),
             'username_limit' => config('anonaddy.additional_username_limit'),
             'default_username_id' => $this->default_username_id,
