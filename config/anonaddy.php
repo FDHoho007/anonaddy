@@ -353,4 +353,15 @@ return [
     'wordlist' => $resolveList('ANONADDY_WORDLIST', __DIR__.'/lists/wordlist.php'),
     'adjectives' => $resolveList('ANONADDY_ADJECTIVES', __DIR__.'/lists/adjectives.php'),
     'nouns' => $resolveList('ANONADDY_NOUNS', __DIR__.'/lists/nouns.php'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Imprint URL
+    |--------------------------------------------------------------------------
+    |
+    | If set this value will display a link to your imprint on the login page.
+    |
+    */
+
+    'imprint_url' => env('ANONADDY_IMPRINT_URL'),
 ];

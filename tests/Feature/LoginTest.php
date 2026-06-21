@@ -219,4 +219,26 @@ class LoginTest extends TestCase
 
         Notification::assertNothingSent();
     }
+
+    #[Test]
+    public function login_view_shows_imprint_url_when_configured()
+    {
+        config(['anonaddy.imprint_url' => 'https://example.com/imprint']);
+
+        $response = $this->get('/login');
+
+        $response->assertSee('Imprint');
+        $response->assertSee('https://example.com/imprint');
+    }
+
+    #[Test]
+    public function login_view_does_not_show_imprint_url_when_not_configured()
+    {
+        config(['anonaddy.imprint_url' => null]);
+
+        $response = $this->get('/login');
+
+        $response->assertDontSee('Imprint');
+        $response->assertDontSee('https://example.com/imprint');
+    }
 }

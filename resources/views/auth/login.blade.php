@@ -96,6 +96,13 @@
                     </a>
                 </p>
             @endif
+            @if (config('anonaddy.imprint_url'))
+                <p class="w-full text-xs text-center text-indigo-100 mt-6">
+                    <a class="text-white hover:text-indigo-50 no-underline" href="{{ config('anonaddy.imprint_url') }}">
+                        Imprint
+                    </a>
+                </p>
+            @endif
         </div>
     </div>
 @endsection
