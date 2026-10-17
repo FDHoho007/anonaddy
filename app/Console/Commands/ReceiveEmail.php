@@ -172,8 +172,10 @@ class ReceiveEmail extends Command
                         // Check if this is an username or standard alias
                         if (! empty($subdomain)) {
                             $username = Username::where('username', $subdomain)->first();
-                            $this->user = $username->user;
-                            $aliasable = $username;
+                            if ($username?->user?->domainOptions()->contains($this->inboundAlias['domain'])) {
+                                $this->user = $username->user;
+                                $aliasable = $username;
+                            }
                         }
                     } else {
                         // It is a custom domain
@@ -183,8 +185,11 @@ class ReceiveEmail extends Command
                         }
                     }
 
-                    if (! isset($this->user) && ! empty(config('anonaddy.admin_username'))) {
-                        $this->user = Username::where('username', config('anonaddy.admin_username'))->first()?->user;
+                    if (! isset($this->user) && ! empty(config('anonaddy.admin_username')) && empty($parentDomain)) {
+                        $adminUser = Username::where('username', config('anonaddy.admin_username'))->first()?->user;
+                        if ($adminUser?->domainOptions()->contains($this->inboundAlias['domain'])) {
+                            $this->user = $adminUser;
+                        }
                     }
                 }
 

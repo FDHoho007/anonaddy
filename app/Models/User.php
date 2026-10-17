@@ -707,7 +707,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         $customDomains = $this->verifiedDomains()->pluck('domain')->toArray();
 
-        $allDomains = config('anonaddy.all_domains')[0] ? config('anonaddy.all_domains') : [config('anonaddy.domain')];
+        $allDomains = $this->allowedAllDomains();
 
         return collect()
             ->when($this->canCreateUsernameSubdomainAliases(), function (Collection $collection) use ($allDomains) {
@@ -722,9 +722,7 @@ class User extends Authenticatable implements MustVerifyEmail
                 return $collection->concat($usernameSubdomains);
             })
             ->concat($customDomains)
-            ->when($this->canCreateSharedDomainAliases(), function (Collection $collection) use ($allDomains) {
-                return $collection->concat($allDomains);
-            })
+            ->concat($this->sharedDomainOptions())
             ->reverse()
             ->values();
     }
@@ -803,10 +801,100 @@ class User extends Authenticatable implements MustVerifyEmail
     public function sharedDomainOptions()
     {
         if ($this->canCreateSharedDomainAliases()) {
-            return config('anonaddy.all_domains');
+            return $this->allowedAllDomains(config('anonaddy.all_domains'));
         }
 
-        return [];
+        $restrictedMap = static::restrictedSharedDomainsMap();
+
+        if ($restrictedMap === []) {
+            return [];
+        }
+
+        return collect(config('anonaddy.all_domains'))
+            ->filter(fn (string $domain) => isset($restrictedMap[$domain]) && $this->isAllowedRestrictedDomain($restrictedMap[$domain]))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Filter all_domains by restricted_shared_domains rules for this user.
+     *
+     * @param  array<int, string>|null  $baseDomains
+     * @return array<int, string>
+     */
+    protected function allowedAllDomains(?array $baseDomains = null): array
+    {
+        $allDomains = $baseDomains ?? (config('anonaddy.all_domains')[0] ? config('anonaddy.all_domains') : [config('anonaddy.domain')]);
+        $restrictedMap = static::restrictedSharedDomainsMap();
+
+        if ($restrictedMap === []) {
+            return $allDomains;
+        }
+
+        return collect($allDomains)
+            ->filter(fn (string $domain) => ! isset($restrictedMap[$domain]) || $this->isAllowedRestrictedDomain($restrictedMap[$domain]))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Return shared domains from all_domains that are not in restricted_shared_domains.
+     *
+     * @return array<int, string>
+     */
+    public static function unrestrictedSharedDomains(): array
+    {
+        $restrictedDomains = array_keys(static::restrictedSharedDomainsMap());
+
+        return array_values(array_diff(config('anonaddy.all_domains', []), $restrictedDomains));
+    }
+
+    /**
+     * Parse config('anonaddy.restricted_shared_domains') into [domain => [allowed_identifiers]].
+     *
+     * @return array<string, array<int, string>>
+     */
+    public static function restrictedSharedDomainsMap(): array
+    {
+        $raw = trim((string) config('anonaddy.restricted_shared_domains', ''));
+
+        if ($raw === '') {
+            return [];
+        }
+
+        $map = [];
+
+        foreach (explode(',', $raw) as $entry) {
+            if (! str_contains($entry, ':')) {
+                continue;
+            }
+
+            [$domain, $users] = explode(':', $entry, 2);
+            $domain = strtolower(trim($domain));
+
+            if ($domain !== '') {
+                $map[$domain] = array_values(array_filter(array_map(
+                    fn (string $u) => strtolower(trim($u)),
+                    explode('|', $users)
+                )));
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param  array<int, string>  $allowedIdentifiers
+     */
+    protected function isAllowedRestrictedDomain(array $allowedIdentifiers): bool
+    {
+        if (in_array(strtolower($this->id), $allowedIdentifiers, true)) {
+            return true;
+        }
+
+        $usernames = $this->usernames()->pluck('username')->map(fn (string $u) => strtolower($u))->all();
+
+        return array_intersect($usernames, $allowedIdentifiers) !== [];
     }
 
     public function isAdminUser()

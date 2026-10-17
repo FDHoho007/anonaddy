@@ -26,6 +26,7 @@ try {
             'ACTION_DEFER',
             'ACTION_DEFER_NEW',
             'ANONADDY_ALL_DOMAINS',
+            'ANONADDY_RESTRICTED_SHARED_DOMAINS',
             'ANONADDY_SECRET',
             'ANONADDY_ADMIN_USERNAME',
         ])
@@ -178,8 +179,8 @@ try {
     $noAliasExists = is_null($aliasActionQuery);
 
     if ($noAliasExists && $aliasHasSharedDomain) {
-        // If admin username is set then allow through with catch-all
-        if ($adminUsername) {
+        // If admin username is set and allowed on this domain then allow through with catch-all
+        if ($adminUsername && isUserAllowedOnDomain($aliasDomain, $adminUsername)) {
             sendAction('DUNNO');
         } else {
             sendAction(ACTION_DOES_NOT_EXIST);
@@ -200,6 +201,11 @@ try {
             sendAction($aliasAction);
         } elseif ($aliasHasUsernameDomain) {
             $aliasUsername = substr($aliasDomain, 0, -(strlen($matchedBaseDomain) + 1));
+
+            if ($noAliasExists && ! isUserAllowedOnDomain($matchedBaseDomain, $aliasUsername)) {
+                sendAction(ACTION_DOES_NOT_EXIST);
+                exit(0);
+            }
 
             $usernameActionQuery = Database::table('usernames')
                 ->leftJoin('users', 'usernames.user_id', '=', 'users.id')
@@ -338,6 +344,61 @@ function endsWith($haystack, $needles)
     }
 
     return false;
+}
+
+function isUserAllowedOnDomain($domain, $username)
+{
+    $raw = trim((string) ($_ENV['ANONADDY_RESTRICTED_SHARED_DOMAINS'] ?? ''));
+
+    if ($raw === '') {
+        return true;
+    }
+
+    $domain = strtolower(trim($domain));
+    $username = strtolower(trim($username));
+
+    foreach (explode(',', $raw) as $entry) {
+        if (! str_contains($entry, ':')) {
+            continue;
+        }
+
+        [$restrictedDomain, $users] = explode(':', $entry, 2);
+
+        if (strtolower(trim($restrictedDomain)) !== $domain) {
+            continue;
+        }
+
+        $allowed = array_values(array_filter(array_map(
+            fn ($u) => strtolower(trim($u)),
+            explode('|', $users)
+        )));
+
+        if (in_array($username, $allowed, true)) {
+            return true;
+        }
+
+        $userId = Database::table('usernames')
+            ->where('username', $username)
+            ->value('user_id');
+
+        if (! $userId) {
+            return false;
+        }
+
+        if (in_array(strtolower($userId), $allowed, true)) {
+            return true;
+        }
+
+        $userUsernames = Database::table('usernames')
+            ->where('user_id', $userId)
+            ->pluck('username')
+            ->map(fn ($u) => strtolower($u))
+            ->all();
+
+        return array_intersect($userUsernames, $allowed) !== [];
+    }
+
+    return true;
 }
 
 function logData($data)

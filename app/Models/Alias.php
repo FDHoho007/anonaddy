@@ -275,7 +275,7 @@ class Alias extends Model
 
     public function hasSharedDomain()
     {
-        return in_array($this->domain, config('anonaddy.all_domains'));
+        return in_array($this->domain, User::unrestrictedSharedDomains());
     }
 
     public function getFromName()

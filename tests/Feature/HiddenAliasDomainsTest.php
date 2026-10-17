@@ -226,6 +226,87 @@ class HiddenAliasDomainsTest extends TestCase
         );
     }
 
+    #[Test]
+    public function restricted_shared_domains_are_only_available_to_allowed_users(): void
+    {
+        config([
+            'anonaddy.all_domains' => ['anonaddy.com', 'family.example', 'vip.example'],
+            'anonaddy.restricted_shared_domains' => 'family.example:johndoe|janedoe,vip.example:someoneelse',
+        ]);
+
+        $otherUser = $this->createUser('outsider');
+
+        $this->assertContains('family.example', $this->user->domainOptions());
+        $this->assertContains('johndoe.family.example', $this->user->domainOptions());
+        $this->assertNotContains('vip.example', $this->user->domainOptions());
+        $this->assertNotContains('johndoe.vip.example', $this->user->domainOptions());
+
+        $this->assertNotContains('family.example', $otherUser->domainOptions());
+        $this->assertNotContains('outsider.family.example', $otherUser->domainOptions());
+
+        Sanctum::actingAs($this->user);
+
+        $this->postJson('/api/v1/aliases', [
+            'domain' => 'family.example',
+            'format' => 'random_characters',
+        ])->assertCreated();
+
+        Sanctum::actingAs($otherUser);
+
+        $this->postJson('/api/v1/aliases', [
+            'domain' => 'family.example',
+            'format' => 'random_characters',
+        ])->assertUnprocessable();
+    }
+
+    #[Test]
+    public function restricted_shared_domains_are_available_to_allowed_users_when_non_admin_shared_domains_is_disabled(): void
+    {
+        config([
+            'anonaddy.admin_username' => 'adminuser',
+            'anonaddy.all_domains' => ['anonaddy.com', 'family.example'],
+            'anonaddy.non_admin_shared_domains' => false,
+            'anonaddy.restricted_shared_domains' => 'family.example:'.$this->user->id,
+        ]);
+
+        $this->assertNotContains('anonaddy.com', $this->user->sharedDomainOptions());
+        $this->assertContains('family.example', $this->user->sharedDomainOptions());
+        $this->assertContains('family.example', $this->user->domainOptions());
+    }
+
+    #[Test]
+    public function forgetting_an_alias_on_a_restricted_shared_domain_hard_deletes_it(): void
+    {
+        config([
+            'anonaddy.all_domains' => ['anonaddy.com', 'family.example'],
+            'anonaddy.restricted_shared_domains' => 'family.example:johndoe|janedoe',
+        ]);
+
+        $familyMember = $this->createUser('janedoe');
+
+        Sanctum::actingAs($this->user);
+
+        $createResponse = $this->postJson('/api/v1/aliases', [
+            'domain' => 'family.example',
+            'format' => 'custom',
+            'local_part' => 'sharedbill',
+        ]);
+
+        $createResponse->assertCreated();
+        $aliasId = $createResponse->json('data.id');
+
+        $this->deleteJson("/api/v1/aliases/{$aliasId}/forget")->assertNoContent();
+        $this->assertDatabaseMissing('aliases', ['id' => $aliasId]);
+
+        Sanctum::actingAs($familyMember);
+
+        $this->postJson('/api/v1/aliases', [
+            'domain' => 'family.example',
+            'format' => 'custom',
+            'local_part' => 'sharedbill',
+        ])->assertCreated();
+    }
+
     /**
      * @return array<int, string>
      */

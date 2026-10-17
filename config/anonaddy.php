@@ -178,6 +178,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Restricted Shared Domains
+    |--------------------------------------------------------------------------
+    |
+    | Restrict specific domains in ANONADDY_ALL_DOMAINS to designated usernames
+    | or user IDs. Format: "family.com:alice|bob,other.com:charlie"
+    |
+    */
+
+    'restricted_shared_domains' => env('ANONADDY_RESTRICTED_SHARED_DOMAINS', ''),
+
+    /*
+    |--------------------------------------------------------------------------
     | Secret
     |--------------------------------------------------------------------------
     |

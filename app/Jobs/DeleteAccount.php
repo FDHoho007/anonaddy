@@ -38,7 +38,9 @@ class DeleteAccount implements ShouldBeEncrypted, ShouldQueue
     {
         $this->user->aliasRecipients()->delete();
 
-        $sharedDomainAliases = $this->user->aliases()->withTrashed()->whereIn('domain', config('anonaddy.all_domains'));
+        $unrestrictedSharedDomains = User::unrestrictedSharedDomains();
+
+        $sharedDomainAliases = $this->user->aliases()->withTrashed()->whereIn('domain', $unrestrictedSharedDomains);
         // Remove data from shared domain aliases
         $sharedDomainAliases->update([
             'extension' => null,
@@ -56,7 +58,7 @@ class DeleteAccount implements ShouldBeEncrypted, ShouldQueue
         ]);
 
         // Force delete any other aliases
-        $this->user->aliases()->withTrashed()->whereNotIn('domain', config('anonaddy.all_domains'))->forceDelete();
+        $this->user->aliases()->withTrashed()->whereNotIn('domain', $unrestrictedSharedDomains)->forceDelete();
 
         $this->user->recipients()->get()->each(function ($recipient) {
             // In order to fire deleting model event. With user to prevent lazy loading.

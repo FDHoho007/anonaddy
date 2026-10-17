@@ -1061,4 +1061,31 @@ class ReceiveEmailTest extends TestCase
             return $mail->hasTo($this->user->email) && $mail->hasFrom('ebay@johndoe.anonaddy.com') && $mail->hasReplyTo('ebay+will=anonaddy.com@johndoe.anonaddy.com');
         });
     }
+
+    #[Test]
+    public function it_does_not_forward_catch_all_email_for_restricted_shared_domain_when_user_is_not_allowed()
+    {
+        Mail::fake();
+
+        config([
+            'anonaddy.all_domains' => ['anonaddy.com', 'anonaddy.me'],
+            'anonaddy.restricted_shared_domains' => 'anonaddy.me:someoneelse',
+        ]);
+
+        $this->artisan(
+            'anonaddy:receive-email',
+            [
+                'file' => base_path('tests/emails/email_other_domain.eml'),
+                '--sender' => 'will@anonaddy.com',
+                '--recipient' => ['ebay@johndoe.anonaddy.me'],
+                '--local_part' => ['ebay'],
+                '--extension' => [''],
+                '--domain' => ['johndoe.anonaddy.me'],
+                '--size' => '1000',
+            ]
+        )->assertExitCode(0);
+
+        $this->assertEquals(0, $this->user->aliases()->count());
+        Mail::assertNothingQueued();
+    }
 }
